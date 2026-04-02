@@ -1,0 +1,87 @@
+export type Role = 'admin' | 'client';
+export type Plan = 'starter' | 'business' | 'pro';
+export type ClientStatus = 'active' | 'suspended' | 'pending';
+export type MailboxStatus = 'active' | 'suspended';
+export type InvoiceStatus = 'paid' | 'unpaid' | 'overdue';
+export type TicketStatus = 'open' | 'in_progress' | 'resolved';
+export type LeadStatus = 'new' | 'contacted' | 'converted' | 'rejected';
+export type RegistrationType = 'company' | 'individual' | 'ngo';
+
+export interface Profile {
+  id: string;
+  role: Role;
+  full_name: string | null;
+  phone: string | null;
+  created_at: string;
+}
+
+export interface Client {
+  id: string;
+  profile_id: string | null;
+  company_name: string;
+  domain: string;
+  plan: Plan;
+  mailbox_limit: number;
+  status: ClientStatus;
+  domain_registered_at: string | null;
+  next_renewal_date: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface Mailbox {
+  id: string;
+  client_id: string;
+  email: string;
+  quota_mb: number;
+  status: MailboxStatus;
+  created_at: string;
+}
+
+export interface Invoice {
+  id: string;
+  client_id: string;
+  amount: number;
+  status: InvoiceStatus;
+  due_date: string;
+  paid_at: string | null;
+  description: string | null;
+  created_at: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  client_id: string;
+  subject: string;
+  message: string;
+  status: TicketStatus;
+  created_at: string;
+}
+
+export interface ApiError {
+  error: string;
+  code: string;
+}
+
+export interface Lead {
+  id: string;
+  domain: string | null;
+  tld: '.co.zw' | '.com' | null;
+  plan: Plan | null;
+  company_name: string | null;
+  registration_type: RegistrationType | null;
+  business_reg_number: string | null;
+  org_description: string | null;
+  contact_name: string | null;
+  contact_position: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  physical_address: string | null;
+  letterhead_ready: boolean | null;
+  tc_confirmed: boolean | null;
+  signed_letter_ready: boolean | null;
+  id_ready: boolean | null;
+  status: LeadStatus;
+  notes: string | null;
+  created_at: string;
+}

@@ -1,0 +1,22 @@
+CREATE TABLE leads (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  domain              TEXT,
+  tld                 TEXT CHECK (tld IN ('.co.zw', '.com')),
+  plan                TEXT,
+  company_name        TEXT,
+  registration_type   TEXT CHECK (registration_type IN ('company', 'individual', 'ngo')),
+  business_reg_number TEXT,
+  org_description     TEXT,
+  contact_name        TEXT,
+  contact_position    TEXT,
+  contact_email       TEXT,
+  contact_phone       TEXT,
+  physical_address    TEXT,
+  letterhead_ready    BOOLEAN,
+  tc_confirmed        BOOLEAN,
+  signed_letter_ready BOOLEAN,
+  id_ready            BOOLEAN,
+  status              TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'converted', 'rejected')),
+  notes               TEXT,
+  created_at          TIMESTAMPTZ DEFAULT now()
+);

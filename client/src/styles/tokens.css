@@ -1,0 +1,41 @@
+:root {
+  /* Homepage Colors */
+  --primary: #8C1007;
+  --primary-hover: #B01209;
+  --red-dark: #5C0904;
+  
+  --cream: #FFFDF5;
+  --cream-2: #FFF9E8;
+  --cream-3: #FBF3D9;
+  --cream-4: #F5EBC1;
+  
+  --ink: #1A0400;
+  --muted: #9A6040;
+  
+  /* Layout Mappings */
+  --bg-page: var(--cream);
+  --bg-card: #ffffff;
+  --border: rgba(140,16,7,0.11);
+  --border-strong: rgba(140,16,7,0.20);
+  --border-focus: var(--primary);
+  
+  /* Text Mappings */
+  --text-cream: var(--ink); /* Mapping existing variable to avoid massive refactor */
+  --text-muted: var(--muted);
+  
+  /* Typography */
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 12px rgba(140,16,7,0.06);
+  --shadow-md: 0 8px 32px rgba(140,16,7,0.09);
+  --shadow-lg: 0 20px 60px rgba(140,16,7,0.13);
+
+  --danger: #ef4444;
+  --whatsapp: #25D366;
+
+  /* Scrollbar */
+  --scrollbar-track: var(--cream-3);
+  --scrollbar-thumb: var(--border-strong);
+}
