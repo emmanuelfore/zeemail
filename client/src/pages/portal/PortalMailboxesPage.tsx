@@ -325,6 +325,10 @@ export function PortalMailboxesPage() {
     }
   }
 
+<<<<<<< HEAD
+=======
+  const isPaid = client?.status === 'active';
+>>>>>>> 7d7a145af8ec4fa5a843046524cac7cef90f3cdf
   const isPendingPayment = client?.status === 'pending_payment';
   const canAdd = client?.status && client.status !== 'suspended';
   const mailboxLimit = client?.mailbox_limit ?? 0;

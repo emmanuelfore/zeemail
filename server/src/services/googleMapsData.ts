@@ -76,7 +76,11 @@ export async function searchBusinesses(
   }
 }
 
+<<<<<<< HEAD
 export async function getPlaceDetails(placeId: string, _businessName?: string, _city?: string): Promise<{ phone: string | null; website: string | null; email?: string | null }> {
+=======
+export async function getPlaceDetails(placeId: string, businessName?: string, city?: string): Promise<{ phone: string | null; website: string | null; email?: string | null }> {
+>>>>>>> 7d7a145af8ec4fa5a843046524cac7cef90f3cdf
   // With GMD, the search result often already contains everything.
   try {
     const response = await fetch(`https://${RAPIDAPI_HOST()}/details?place_id=${placeId}`, {

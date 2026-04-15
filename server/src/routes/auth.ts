@@ -15,7 +15,11 @@ router.get('/me', auth, (req: Request, res: Response, _next: NextFunction): void
 
 // GET /api/auth/users/:userId — admin only
 router.get('/users/:userId', auth, requireRole('admin'), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+<<<<<<< HEAD
   const userId = String(req.params.userId);
+=======
+  const { userId } = req.params;
+>>>>>>> 7d7a145af8ec4fa5a843046524cac7cef90f3cdf
 
   try {
     const { data: { user }, error } = await supabaseAdmin.auth.admin.getUserById(userId);
@@ -37,7 +41,11 @@ router.get('/users/:userId', auth, requireRole('admin'), async (req: Request, re
 
 // POST /api/auth/reset-password/:userId — admin only
 router.post('/reset-password/:userId', auth, requireRole('admin'), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+<<<<<<< HEAD
   const userId = String(req.params.userId);
+=======
+  const { userId } = req.params;
+>>>>>>> 7d7a145af8ec4fa5a843046524cac7cef90f3cdf
   const { password } = req.body;
 
   if (!password || password.length < 8) {

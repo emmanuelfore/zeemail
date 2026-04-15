@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import { useNavigate } from 'react-router-dom';
+=======
+import { NavLink, useNavigate } from 'react-router-dom';
+>>>>>>> 7d7a145af8ec4fa5a843046524cac7cef90f3cdf
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useTickets } from '../../hooks/useTickets';
