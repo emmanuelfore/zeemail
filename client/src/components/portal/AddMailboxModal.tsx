@@ -63,11 +63,17 @@ export function AddMailboxModal({ clientId, domain, mailboxLimit, currentCount, 
   const [loading, setLoading] = useState(false);
 
   const isLimitReached = currentCount >= mailboxLimit;
+  const remainingSlots = Math.max(0, mailboxLimit - currentCount);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!prefix.trim() || !password.trim()) {
-      toast('Please fill in searching fields', 'error');
+      toast('Please fill in all fields', 'error');
+      return;
+    }
+
+    if (password.trim().length < 8) {
+      toast('Mailbox passwords must be at least 8 characters', 'error');
       return;
     }
 
@@ -126,6 +132,20 @@ export function AddMailboxModal({ clientId, domain, mailboxLimit, currentCount, 
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid var(--border)',
+                borderRadius: '10px',
+                padding: '0.875rem 1rem',
+                color: 'var(--text-muted)',
+                fontSize: '0.85rem',
+                lineHeight: 1.5,
+              }}
+            >
+              <strong style={{ color: 'var(--text-cream)' }}>{remainingSlots}</strong> of <strong style={{ color: 'var(--text-cream)' }}>{mailboxLimit}</strong> mailbox slots remaining on this plan.
+            </div>
+
             <div>
               <label style={labelStyle}>Email Address</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -145,16 +165,20 @@ export function AddMailboxModal({ clientId, domain, mailboxLimit, currentCount, 
               <input 
                 type="password" 
                 style={inputStyle} 
-                placeholder="********" 
+                placeholder="Minimum 8 characters" 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: '0.5rem 0 0' }}>
+                Set the mailbox password now. The user will use this password to sign in to webmail and email apps.
+              </p>
             </div>
 
             <div style={{ marginTop: '0.5rem' }}>
               <button 
                 type="submit" 
                 disabled={loading}
+                data-testid="create-mailbox-submit"
                 style={{
                   background: 'var(--primary)',
                   color: 'var(--text-cream)',

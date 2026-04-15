@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PageTransition, { PageTransitionHandle } from '../components/shared/PageTransition';
 import { FloatingWhatsApp } from '../components/shared/FloatingWhatsApp';

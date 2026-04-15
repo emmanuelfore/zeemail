@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import type { SystemSetting, Plan } from '../types';
+import type { Plan } from '../types';
 
 export function usePricing() {
   const [pricing, setPricing] = useState<Record<Plan, number>>({
@@ -13,7 +13,7 @@ export function usePricing() {
   useEffect(() => {
     async function fetchPricing() {
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('system_settings')
           .select('*')
           .eq('key', 'pricing')

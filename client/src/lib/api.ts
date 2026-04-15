@@ -1,6 +1,8 @@
 import { useAuthStore } from '../store/authStore';
 import { ApiError } from '../types/index';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+
 export async function apiRequest<T>(
   method: string,
   path: string,
@@ -16,7 +18,7 @@ export async function apiRequest<T>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(import.meta.env.VITE_API_BASE_URL + path, {
+  const response = await fetch(API_BASE_URL + path, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,

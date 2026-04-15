@@ -24,9 +24,29 @@ import { startDnsHealthCheckJob } from './jobs/dnsHealthCheck';
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
+const allowedOrigins = Array.from(
+  new Set(
+    [
+      process.env.APP_URL,
+      process.env.CORS_ORIGIN,
+      'http://localhost:5173',
+      'http://localhost:3000',
+    ].filter((value): value is string => Boolean(value))
+  )
+);
 
 // CORS — allow Vite dev server and same-origin in prod
-app.use(cors({ origin: ['http://localhost:5173', 'http://localhost:3000'] }));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
+  })
+);
 
 // Logging
 app.use(morgan('dev'));

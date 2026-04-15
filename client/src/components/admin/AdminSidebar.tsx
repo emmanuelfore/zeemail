@@ -12,7 +12,8 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
-  LifeBuoy
+  LifeBuoy,
+  Server
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -27,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Overview', to: '/admin', icon: LayoutDashboard },
   { label: 'Clients', to: '/admin/clients', icon: Users },
   { label: 'Mailboxes', to: '/admin/mailboxes', icon: Mail },
+  { label: 'Mailcow Domains', to: '/admin/mailcow-domains', icon: Server },
   { label: 'Invoices', to: '/admin/invoices', icon: ReceiptText },
   { label: 'Leads', to: '/admin/leads', icon: ClipboardList },
   { label: 'Support', to: '/admin/support', icon: LifeBuoy },

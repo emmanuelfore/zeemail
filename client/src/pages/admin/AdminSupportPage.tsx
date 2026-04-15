@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { SkeletonLoader } from '../../components/shared/SkeletonLoader';
 import { EmptyState } from '../../components/shared/EmptyState';
-import { LifeBuoy, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import type { SupportTicket, Client } from '../../types';
 
 const cardStyle: React.CSSProperties = {
@@ -25,7 +25,7 @@ export function AdminSupportPage() {
     async function load() {
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('support_tickets')
           .select('*, client:clients(*)')
           .order('created_at', { ascending: false });
@@ -82,7 +82,6 @@ export function AdminSupportPage() {
           <EmptyState 
             heading="No tickets found" 
             subtext="Everything is quiet in the support queue." 
-            icon={<LifeBuoy size={48} />}
           />
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>

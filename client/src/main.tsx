@@ -6,7 +6,7 @@ import { supabase } from './lib/supabase';
 import { useAuthStore } from './store/authStore';
 import { ToastProvider } from './components/shared/Toast';
 
-const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
+const API = import.meta.env.VITE_API_BASE_URL || window.location.origin;
 
 // On page load, restore existing session without competing with login
 supabase.auth.getSession().then(async ({ data: { session } }) => {

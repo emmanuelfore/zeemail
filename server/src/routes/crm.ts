@@ -3,7 +3,8 @@ import { auth } from '../middleware/auth';
 import { requireRole } from '../middleware/requireRole';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { checkEmailProfessionalism, scrapeEmailFromWebsite } from '../services/emailChecker';
-import { searchBusinesses, getPlaceDetails } from '../services/googleMaps';
+import { searchBusinesses, getPlaceDetails } from '../services/googleMapsData';
+import { domainCheckService } from '../services/domainCheck';
 
 const router = Router();
 router.use(auth);
@@ -73,9 +74,20 @@ router.get('/search/maps', async (req: Request, res: Response, next: NextFunctio
 
 router.get('/search/maps/details', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { place_id } = req.query as Record<string, string>;
+    const { place_id, business_name } = req.query as Record<string, string>;
     if (!place_id) { res.status(422).json({ error: 'place_id required', code: 'VALIDATION_ERROR' }); return; }
-    const details = await getPlaceDetails(place_id);
+    
+    const details: any = await getPlaceDetails(place_id);
+    
+    // Check if the domain related to the business name is available
+    if (business_name) {
+      const slug = business_name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (slug.length > 3) {
+        const check = await domainCheckService.checkAvailability(slug, '.co.zw');
+        details.domain_available = check.available;
+      }
+    }
+    
     res.json(details);
   } catch (err) { next(err); }
 });

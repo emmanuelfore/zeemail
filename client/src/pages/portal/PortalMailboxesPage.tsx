@@ -1,28 +1,28 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
-import { apiRequest } from '../../lib/api';
 import { useAuth } from '../../hooks/useAuth';
-import { useToast } from '../../hooks/useToast';
+import { StatusBadge } from '../../components/shared/StatusBadge';
 import { SkeletonLoader } from '../../components/shared/SkeletonLoader';
 import { EmptyState } from '../../components/shared/EmptyState';
-import { MailboxRow } from '../../components/portal/MailboxRow';
-import { StatusBadge } from '../../components/shared/StatusBadge';
+import { useToast } from '../../hooks/useToast';
 import { AddMailboxModal } from '../../components/portal/AddMailboxModal';
+import { MailboxRow } from '../../components/portal/MailboxRow';
+import { apiRequest } from '../../lib/api';
 import type { Client, Mailbox, ApiError } from '../../types/index';
 
-const MAILCOW_HOST = import.meta.env.VITE_MAILCOW_HOST ?? 'mail.zeemail.co.zw';
+const MAILCOW_HOST = import.meta.env.VITE_MAILCOW_HOST || 'mail.zeemail.co.zw';
 
 const card: React.CSSProperties = {
   background: 'var(--bg-card)',
   border: '1px solid var(--border)',
-  borderRadius: '10px',
+  borderRadius: '16px',
   padding: '1.5rem',
 };
 
 const sectionTitle: React.CSSProperties = {
   color: 'var(--text-cream)',
+  fontSize: '1.125rem',
   fontWeight: 700,
-  fontSize: '1rem',
   margin: '0 0 1rem',
 };
 
@@ -30,32 +30,31 @@ const label: React.CSSProperties = {
   color: 'var(--text-muted)',
   fontSize: '0.75rem',
   fontWeight: 600,
-  textTransform: 'uppercase' as const,
+  textTransform: 'uppercase',
   letterSpacing: '0.05em',
-  marginBottom: '0.25rem',
+  margin: '0 0 0.25rem',
 };
 
 const code: React.CSSProperties = {
-  display: 'block',
-  background: 'white',
-  border: '1px solid var(--border)',
-  borderRadius: '6px',
-  padding: '0.5rem 0.75rem',
-  color: 'var(--primary)',
   fontFamily: 'JetBrains Mono, monospace',
-  fontWeight: 700,
-  fontSize: '0.875rem',
-  wordBreak: 'break-all' as const,
+  fontSize: '0.8125rem',
+  color: 'var(--text-cream)',
+  padding: '0.25rem 0.5rem',
+  background: 'rgba(255, 255, 255, 0.05)',
+  borderRadius: '4px',
+  display: 'block',
+  width: 'fit-content',
 };
 
 function SetupSection({ domain }: { domain: string }) {
-  const [tab, setTab] = useState<'outlook' | 'gmail' | 'mobile' | 'thunderbird'>('outlook');
+  const [tab, setTab] = useState<'outlook' | 'gmail' | 'mobile' | 'thunderbird' | 'generic'>('outlook');
 
   const tabs = [
     { id: 'outlook' as const, label: 'Outlook' },
     { id: 'gmail' as const, label: 'Gmail (add account)' },
     { id: 'mobile' as const, label: 'iPhone / Android' },
     { id: 'thunderbird' as const, label: 'Thunderbird' },
+    { id: 'generic' as const, label: 'Other Clients' },
   ];
 
   const settings = {
@@ -65,9 +64,18 @@ function SetupSection({ domain }: { domain: string }) {
 
   return (
     <div style={card}>
-      <p style={sectionTitle}>Email client setup instructions</p>
-      <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0 0 1.25rem' }}>
-        Use these settings to configure any email client with your <strong style={{ color: 'var(--text-cream)' }}>{domain}</strong> mailbox.
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(21, 128, 61, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+        </div>
+        <div>
+          <h3 style={{ ...sectionTitle, margin: 0 }}>Connect your mail client</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', margin: '0.25rem 0 0' }}>How to set up your email on any device.</p>
+        </div>
+      </div>
+      
+      <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0 0 1.25rem', lineHeight: 1.6 }}>
+        Use the following incoming and outgoing server settings to configure your <strong>{domain}</strong> mailbox in Outlook, Gmail, iPhone, or any other app. Need help? <a href="/portal/support" style={{ color: 'var(--primary)', fontWeight: 600 }}>Contact support</a>
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '2rem' }}>
@@ -164,6 +172,83 @@ function SetupSection({ domain }: { domain: string }) {
             <li>Click <strong style={{ color: 'var(--text-cream)' }}>Done</strong></li>
           </ol>
         )}
+        {tab === 'generic' && (
+          <ol style={{ margin: 0, paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+            <li>Locate the <strong style={{ color: 'var(--text-cream)' }}>Add Account</strong> or <strong style={{ color: 'var(--text-cream)' }}>Settings</strong> menu in your client.</li>
+            <li>Select <strong style={{ color: 'var(--text-cream)' }}>Manual Setup</strong> or <strong style={{ color: 'var(--text-cream)' }}>IMAP</strong>.</li>
+            <li><strong>Incoming Server:</strong> <code style={{ ...code, display: 'inline', padding: '0.1rem 0.4rem' }}>{settings.imap.host}</code>, Port: <code style={{ ...code, display: 'inline', padding: '0.1rem 0.4rem' }}>993</code>, Security: SSL/TLS.</li>
+            <li><strong>Outgoing Server:</strong> <code style={{ ...code, display: 'inline', padding: '0.1rem 0.4rem' }}>{settings.smtp.host}</code>, Port: <code style={{ ...code, display: 'inline', padding: '0.1rem 0.4rem' }}>587</code>, Security: STARTTLS.</li>
+            <li><strong>Authentication:</strong> Use your <strong style={{ color: 'var(--text-cream)' }}>full email address</strong> as the username for both servers.</li>
+            <li>Confirm and finished! your mail will start syncing immediately.</li>
+          </ol>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DnsRecordsSection({ client }: { client: Client }) {
+  const { toast } = useToast();
+  const [dkimKey, setDkimKey] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function fetchDkim() {
+    setLoading(true);
+    try {
+      const res = await apiRequest<{ dkim_txt: string }>('GET', `/api/clients/${client.id}/dkim`);
+      setDkimKey(res.dkim_txt);
+    } catch (err: unknown) {
+      toast((err as ApiError).error ?? 'Failed to fetch DKIM key', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={card}>
+      <p style={sectionTitle}>Manual DNS Records</p>
+      <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0 0 1rem' }}>
+        If your domain status is <strong>pending_dns</strong>, please add these records to your DNS provider (e.g. Cloudflare, GoDaddy).
+      </p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        {/* MX */}
+        <div style={{ background: 'var(--cream-2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1rem' }}>
+          <p style={label}>MX Record</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div><p style={{ ...label, fontSize: '0.65rem' }}>Type</p><code style={code}>MX</code></div>
+            <div><p style={{ ...label, fontSize: '0.65rem' }}>Value</p><code style={code}>10 {MAILCOW_HOST}</code></div>
+          </div>
+        </div>
+
+        {/* SPF */}
+        <div style={{ background: 'var(--cream-2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1rem' }}>
+          <p style={label}>SPF Record (TXT)</p>
+          <code style={code}>v=spf1 ip4:193.203.184.225 -all</code>
+        </div>
+
+        {/* DKIM */}
+        <div style={{ background: 'var(--cream-2)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <p style={label}>DKIM Record (TXT)</p>
+            {!dkimKey && (
+              <button 
+                onClick={fetchDkim} 
+                disabled={loading}
+                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+              >
+                {loading ? 'Fetching...' : 'Show Key'}
+              </button>
+            )}
+          </div>
+          {dkimKey ? (
+            <code style={{ ...code, wordBreak: 'break-all', whiteSpace: 'pre-wrap', fontSize: '0.7rem' }}>
+              {dkimKey}
+            </code>
+          ) : (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0, fontStyle: 'italic' }}>Click show key to see your DKIM record.</p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -172,22 +257,24 @@ function SetupSection({ domain }: { domain: string }) {
 export function PortalMailboxesPage() {
   const { profile } = useAuth();
   const { toast } = useToast();
-
-  const [client, setClient] = useState<Client | null>(null);
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
+  const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchMailboxes = useCallback(async (clientId: string) => {
-    const { data: mbData, error: mbError } = await supabase
-      .from('mailboxes')
-      .select('*')
-      .eq('client_id', clientId)
-      .order('created_at', { ascending: false });
-
-    if (mbError) throw mbError;
-    setMailboxes(mbData ?? []);
-  }, []);
+    try {
+      const { data, error } = await supabase
+        .from('mailboxes')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('email', { ascending: true });
+      if (error) throw error;
+      setMailboxes(data ?? []);
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Failed to fetch mailboxes', 'error');
+    }
+  }, [toast]);
 
   const loadData = useCallback(async () => {
     if (!profile?.id) return;
@@ -225,8 +312,25 @@ export function PortalMailboxesPage() {
     }
   }
 
-  const isPaid = client?.status === 'active';
+  async function handleUpdateQuota(email: string, newQuota: number) {
+    try {
+      await apiRequest('POST', `/api/mailboxes/${encodeURIComponent(email)}/quota`, { quota: newQuota });
+      toast('Quota updated successfully', 'success');
+      if (client?.id) {
+        await fetchMailboxes(client.id);
+      }
+    } catch (err: unknown) {
+      toast((err as ApiError).error ?? 'Failed to update quota', 'error');
+      throw err;
+    }
+  }
+
   const isPendingPayment = client?.status === 'pending_payment';
+  const canAdd = client?.status && client.status !== 'suspended';
+  const mailboxLimit = client?.mailbox_limit ?? 0;
+  const mailboxCount = mailboxes.length;
+  const mailboxSlotsRemaining = Math.max(0, mailboxLimit - mailboxCount);
+  const isPlanLimitReached = mailboxCount >= mailboxLimit;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -241,7 +345,7 @@ export function PortalMailboxesPage() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {!loading && isPaid && (
+          {!loading && canAdd && (
             <button
               onClick={() => setIsModalOpen(true)}
               style={{
@@ -256,16 +360,39 @@ export function PortalMailboxesPage() {
                 boxShadow: 'var(--shadow-sm)',
               }}
             >
-              Add Mailbox
+              {isPlanLimitReached ? 'Manage Plan' : 'Add Mailbox'}
             </button>
           )}
         </div>
       </div>
 
+      {!loading && client && (
+        <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <div style={{ ...card, flex: 1, minWidth: '200px' }}>
+            <p style={label}>Subscription Plan</p>
+            <p style={{ color: 'var(--text-cream)', margin: 0, fontWeight: 700, textTransform: 'capitalize' }}>
+              {client.plan}
+            </p>
+          </div>
+          <div style={{ ...card, flex: 1, minWidth: '200px' }}>
+            <p style={label}>Mailboxes used</p>
+            <p style={{ color: 'var(--text-cream)', margin: 0, fontWeight: 700 }}>
+              {mailboxCount} / {mailboxLimit}
+            </p>
+          </div>
+          <div style={{ ...card, flex: 1, minWidth: '200px' }}>
+            <p style={label}>Slots remaining</p>
+            <p style={{ color: mailboxSlotsRemaining > 0 ? 'var(--primary)' : 'var(--danger)', margin: 0, fontWeight: 700 }}>
+              {mailboxSlotsRemaining}
+            </p>
+          </div>
+        </div>
+      )}
+
       {isPendingPayment && (
         <div style={{ 
-          background: 'rgba(239, 68, 68, 0.05)', 
-          border: '1px solid rgba(239, 68, 68, 0.2)', 
+          background: 'rgba(21, 128, 61, 0.05)', 
+          border: '1px solid rgba(21, 128, 61, 0.2)', 
           borderRadius: '12px', 
           padding: '1.5rem',
           display: 'flex',
@@ -273,16 +400,16 @@ export function PortalMailboxesPage() {
           gap: '1rem',
         }}>
           <div>
-            <h3 style={{ color: 'var(--danger)', margin: '0 0 0.5rem', fontSize: '1.1rem' }}>Payment Required</h3>
+            <h3 style={{ color: 'var(--primary)', margin: '0 0 0.5rem', fontSize: '1.1rem' }}>Welcome to ZeeMail!</h3>
             <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.925rem', lineHeight: 1.6 }}>
-              Your account is currently pending payment. To activate your <strong>{client?.plan}</strong> plan and start creating mailboxes for <strong>{client?.domain}</strong>, please complete your initial payment.
+              Your account for <strong>{client?.domain}</strong> is currently being provisioned. You can start setting up up to <strong>{client?.mailbox_limit}</strong> mailboxes now, including choosing each mailbox password. They will be fully activated as soon as your initial payment is confirmed.
             </p>
           </div>
           <div style={{ display: 'flex', gap: '1rem' }}>
             <button 
               onClick={() => window.location.href = '/portal/invoices'}
               style={{
-                background: 'var(--danger)',
+                background: 'var(--primary)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '8px',
@@ -291,7 +418,7 @@ export function PortalMailboxesPage() {
                 cursor: 'pointer',
               }}
             >
-              Go to Invoices
+              Complete Payment
             </button>
           </div>
         </div>
@@ -304,14 +431,14 @@ export function PortalMailboxesPage() {
           </div>
         ) : mailboxes.length === 0 ? (
           <EmptyState
-            heading={isPendingPayment ? "Waiting for activation" : "No mailboxes yet"}
+            heading={isPendingPayment ? "Start your setup" : "No mailboxes yet"}
             subtext={isPendingPayment 
-              ? "Once your payment is confirmed, you'll be able to create your first mailbox." 
+              ? "Add your first mailbox while your account is being activated." 
               : "Your mailboxes will appear here once they have been set up."}
-            actionLabel={isPaid ? "Add Mailbox" : isPendingPayment ? "Finish payment" : undefined}
-            onAction={isPaid ? () => setIsModalOpen(true) : () => window.location.href = '/portal/invoices'}
+            actionLabel={canAdd && !isPlanLimitReached ? "Add Mailbox" : undefined}
+            onAction={canAdd && !isPlanLimitReached ? () => setIsModalOpen(true) : undefined}
           />
-        ) : (
+        ) : client ? (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
@@ -328,16 +455,23 @@ export function PortalMailboxesPage() {
                   <MailboxRow
                     key={mailbox.id}
                     mailbox={mailbox}
+                    plan={client.plan}
                     onResetPassword={handleResetPassword}
+                    onUpdateQuota={handleUpdateQuota}
                   />
                 ))}
               </tbody>
             </table>
           </div>
-        )}
+        ) : null}
       </div>
 
-      {!loading && client?.domain && isPaid && <SetupSection domain={client.domain} />}
+      {!loading && client?.domain && canAdd && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
+          <SetupSection domain={client.domain} />
+          <DnsRecordsSection client={client} />
+        </div>
+      )}
 
       {isModalOpen && client && (
         <AddMailboxModal 

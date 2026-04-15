@@ -62,12 +62,12 @@ function handleDownloadPdf(invoice: Invoice, clientName: string) {
   // Header
   doc.setFontSize(24);
   doc.setTextColor(21, 128, 61); // ZeeMail green theme
-  doc.text('INVOICE', 14, 25);
+  doc.text('ZEEMAIL', 14, 25);
   
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
-  doc.text('WebZim Technologies', 14, 35);
-  doc.text('contact@webzim.co.zw', 14, 40);
+  doc.text('ZeeMail Enterprise', 14, 35);
+  doc.text('contact@zeemail.co.zw', 14, 40);
   
   // Invoice Details
   doc.setFontSize(12);

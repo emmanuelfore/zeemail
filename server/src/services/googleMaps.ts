@@ -19,13 +19,18 @@ export async function searchBusinesses(
   if (pageToken) url += `&pagetoken=${encodeURIComponent(pageToken)}`;
 
   const res = await fetch(url);
-  const data = await res.json();
+  const data = await res.json() as {
+    status?: string;
+    error_message?: string;
+    next_page_token?: string;
+    results?: Array<Record<string, unknown>>;
+  };
 
   if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
     throw new Error(`Google Maps error: ${data.status} — ${data.error_message ?? ''}`);
   }
 
-  const results: PlaceResult[] = (data.results ?? []).map((place: Record<string, unknown>) => ({
+  const results: PlaceResult[] = (data.results ?? []).map((place) => ({
     business_name: place.name as string,
     address: place.formatted_address as string,
     city,
@@ -41,7 +46,12 @@ export async function getPlaceDetails(placeId: string): Promise<{ phone: string 
   const fields = 'formatted_phone_number,website';
   const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${API_KEY()}`;
   const res = await fetch(url);
-  const data = await res.json();
+  const data = await res.json() as {
+    result?: {
+      formatted_phone_number?: string;
+      website?: string;
+    };
+  };
   const r = data.result ?? {};
   return { phone: r.formatted_phone_number ?? null, website: r.website ?? null };
 }

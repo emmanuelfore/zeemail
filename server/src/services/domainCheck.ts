@@ -1,4 +1,5 @@
-import dns from 'dns/promises';
+
+
 
 export class WhoisUnavailableError extends Error {
   code = 'WHOIS_UNAVAILABLE';
@@ -22,17 +23,27 @@ const DNS_FALLBACK_TLDS = ['.co.zw', '.zw'];
 
 async function checkViaDns(domain: string): Promise<boolean> {
   try {
-    await dns.resolve(domain, 'A');
-    return false; // has A records → taken
-  } catch {
-    try {
-      await dns.resolve(domain, 'NS');
-      return false; // has NS records → taken
-    } catch {
-      return true; // no DNS records → likely available
+    const url = `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=A`;
+    const response = await fetch(url);
+    if (!response.ok) return true; // Fail safe to available if DNS API is down
+    
+    const data = await response.json() as { Answer?: any[] };
+    if (data.Answer && data.Answer.length > 0) return false; // has A records -> taken
+
+    // Check NS records too
+    const nsUrl = `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=NS`;
+    const nsResponse = await fetch(nsUrl);
+    if (nsResponse.ok) {
+      const nsData = await nsResponse.json() as { Answer?: any[] };
+      if (nsData.Answer && nsData.Answer.length > 0) return false; // has NS records -> taken
     }
+
+    return true; // no records found -> available
+  } catch {
+    return true; // network error -> available
   }
 }
+
 
 async function checkAvailability(
   name: string,

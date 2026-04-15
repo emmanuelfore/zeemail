@@ -17,11 +17,21 @@ router.get('/overview', auth, requireRole('admin'), async (_req: Request, res: R
 
 // GET /api/stats/mailbox/:email — admin only
 router.get('/mailbox/:email', auth, requireRole('admin'), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  const { email } = req.params;
+  const email = String(req.params.email);
 
   try {
     const stats = await mailcowService.getMailboxStats(email);
     res.json(stats);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/stats/mailcow-domains — admin only
+router.get('/mailcow-domains', auth, requireRole('admin'), async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const domains = await mailcowService.getDomains();
+    res.json(domains);
   } catch (err) {
     next(err);
   }

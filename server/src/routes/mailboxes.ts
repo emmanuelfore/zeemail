@@ -58,9 +58,10 @@ router.post('/add', auth, async (req: Request, res: Response, next: NextFunction
       return;
     }
 
-    // 2. Verify status (must be active to create mailboxes)
-    if (client.status !== 'active' && authReq.profile.role !== 'admin') {
-      res.status(403).json({ error: 'Account not active. Please complete payment.', code: 'PAYMENT_REQUIRED' });
+    // 2. Verify status (clients may self-serve while active or pending payment)
+    const canSelfServeMailbox = client.status === 'active' || client.status === 'pending_payment';
+    if (!canSelfServeMailbox && authReq.profile.role !== 'admin') {
+      res.status(403).json({ error: 'Account is not ready for mailbox setup yet.', code: 'ACCOUNT_NOT_READY' });
       return;
     }
 
@@ -160,9 +161,7 @@ router.delete('/:email', auth, requireRole('admin'), async (req: Request, res: R
 
   try {
     await mailcowService.deleteMailbox(email);
-
     await supabaseAdmin.from('mailboxes').delete().eq('email', email);
-
     res.status(200).json({ success: true });
   } catch (err) {
     next(err);
@@ -180,15 +179,15 @@ router.post('/:email/password', auth, async (req: Request, res: Response, next: 
     return;
   }
 
-  // Portal users may only reset their own mailbox password
+  // Permission check
   if (authReq.profile.role !== 'admin') {
     const { data: mailbox } = await supabaseAdmin
       .from('mailboxes')
-      .select('email, client_id, clients!inner(profile_id)')
+      .select('email, clients!inner(profile_id)')
       .eq('email', email)
       .single();
 
-    const clientProfileId = (mailbox as { clients?: { profile_id?: string } } | null)?.clients?.profile_id;
+    const clientProfileId = (mailbox as any)?.clients?.profile_id;
     if (!mailbox || clientProfileId !== authReq.profile.id) {
       res.status(403).json({ error: 'Forbidden', code: 'INSUFFICIENT_ROLE' });
       return;
@@ -197,6 +196,62 @@ router.post('/:email/password', auth, async (req: Request, res: Response, next: 
 
   try {
     const result = await mailcowService.resetPassword(email, password);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/mailboxes/:email/quota — auth required
+router.post('/:email/quota', auth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  const email = req.params['email'] as string;
+  const { quota } = req.body as { quota?: number };
+  const authReq = req as AuthenticatedRequest;
+
+  if (typeof quota !== 'number' || quota <= 0) {
+    res.status(422).json({ error: 'quota must be a positive number', code: 'VALIDATION_ERROR' });
+    return;
+  }
+
+  // Authorization and Limits
+  if (authReq.profile.role !== 'admin') {
+    const { data: mailbox } = await supabaseAdmin
+      .from('mailboxes')
+      .select('email, clients!inner(profile_id, plan)')
+      .eq('email', email)
+      .single();
+
+    const client = (mailbox as any)?.clients;
+    if (!mailbox || client?.profile_id !== authReq.profile.id) {
+      res.status(403).json({ error: 'Forbidden', code: 'INSUFFICIENT_ROLE' });
+      return;
+    }
+
+    // Dynamic Quota Limits 
+    const planLimits: Record<string, number> = {
+      'starter': 2048,   // 2GB
+      'business': 5120,  // 5GB
+      'pro': 10240       // 10GB
+    };
+    
+    const maxAllowed = planLimits[client.plan as string] || 2048;
+
+    if (quota > maxAllowed) {
+      res.status(422).json({ 
+        error: `Mailbox quota cannot exceed ${maxAllowed / 1024}GB for your ${client.plan} plan. Please contact support to upgrade.`, 
+        code: 'LIMIT_EXCEEDED' 
+      });
+      return;
+    }
+  }
+
+  try {
+    // 1. Update Mailcow
+    const result = await mailcowService.updateMailbox(email, { quota: quota });
+    
+    // 2. Update DB
+    await supabaseAdmin.from('mailboxes').update({ quota_mb: quota }).eq('email', email);
+
     res.json(result);
   } catch (err) {
     next(err);

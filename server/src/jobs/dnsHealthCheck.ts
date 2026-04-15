@@ -3,6 +3,14 @@ import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { mailcowService } from '../services/mailcow';
 // Unused import removed
 
+interface GoogleDnsAnswer {
+  data: string;
+}
+
+interface GoogleDnsResponse {
+  Answer?: GoogleDnsAnswer[];
+}
+
 const getMailcowHost = () => {
   const raw = process.env.MAILCOW_HOST ?? 'mail.example.com';
   return raw.replace(/^https?:\/\//, '');
@@ -23,7 +31,7 @@ const REQUIRED_RECORDS = async (domain: string, mailcowHost: string) => {
       check: async () => {
         try {
           const res = await fetch(`https://dns.google/resolve?name=${domain}&type=MX`);
-          const data = await res.json();
+          const data = await res.json() as GoogleDnsResponse;
           const records = data.Answer?.map((r: any) => r.data) || [];
           return records.some((r: string) => r.includes(mailcowHost));
         } catch { return false; }
@@ -34,7 +42,7 @@ const REQUIRED_RECORDS = async (domain: string, mailcowHost: string) => {
       check: async () => {
         try {
           const res = await fetch(`https://dns.google/resolve?name=${domain}&type=TXT`);
-          const data = await res.json();
+          const data = await res.json() as GoogleDnsResponse;
           const records = data.Answer?.map((r: any) => r.data) || [];
           return records.some((r: string) => r.includes('v=spf1') && r.includes(mailcowHost));
         } catch { return false; }
@@ -46,7 +54,7 @@ const REQUIRED_RECORDS = async (domain: string, mailcowHost: string) => {
         if (!hasDkim) return true; // If Mailcow doesn't even have it, don't fail DNS for it yet
         try {
           const res = await fetch(`https://dns.google/resolve?name=dkim._domainkey.${domain}&type=TXT`);
-          const data = await res.json();
+          const data = await res.json() as GoogleDnsResponse;
           return (data.Answer?.length || 0) > 0;
         } catch { return false; }
       }
@@ -56,7 +64,7 @@ const REQUIRED_RECORDS = async (domain: string, mailcowHost: string) => {
       check: async () => {
         try {
           const res = await fetch(`https://dns.google/resolve?name=_dmarc.${domain}&type=TXT`);
-          const data = await res.json();
+          const data = await res.json() as GoogleDnsResponse;
           const records = data.Answer?.map((r: any) => r.data) || [];
           return records.some((r: string) => r.includes('v=DMARC1'));
         } catch { return false; }

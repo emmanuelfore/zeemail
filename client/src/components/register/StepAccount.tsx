@@ -50,10 +50,8 @@ const errorStyle: React.CSSProperties = {
 };
 
 export default function StepAccount({
-  path,
   state,
   onAccountField,
-  onZispaField,
   onNext,
 }: StepAccountProps) {
   const [errors, setErrors] = useState<FieldErrors>({});

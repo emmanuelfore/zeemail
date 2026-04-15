@@ -25,6 +25,9 @@ interface PendingMxClient {
   id: string;
   domain: string;
   company_name: string;
+  full_name: string;
+  email: string;
+  phone: string;
   plan: string;
   status: string;
   domain_owned: boolean;
@@ -33,10 +36,6 @@ interface PendingMxClient {
   previous_email_provider: string | null;
   paynow_reference: string | null;
   physical_address: string | null;
-  profiles: {
-    full_name: string | null;
-    phone: string | null;
-  } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -65,7 +64,7 @@ async function getPendingMxClients(): Promise<PendingMxClient[]> {
   const { data, error } = await supabaseAdmin
     .from('clients')
     .select(
-      'id, domain, company_name, plan, status, domain_owned, mx_verified, mx_verified_at, previous_email_provider, paynow_reference, physical_address, profiles(full_name, phone)'
+      'id, domain, company_name, full_name, email, phone, plan, status, domain_owned, mx_verified, mx_verified_at, previous_email_provider, paynow_reference, physical_address'
     )
     .eq('status', 'pending_mx');
 
@@ -74,7 +73,7 @@ async function getPendingMxClients(): Promise<PendingMxClient[]> {
     return [];
   }
 
-  return (data ?? []) as PendingMxClient[];
+  return (data ?? []) as unknown as PendingMxClient[];
 }
 
 /**

@@ -11,6 +11,8 @@ interface PlaceResult {
   city: string;
   google_place_id: string;
   rating?: number;
+  reviews_count?: number;
+  categories?: string[];
   source: string;
   // enriched after details fetch
   phone?: string | null;
@@ -18,6 +20,7 @@ interface PlaceResult {
   email?: string | null;
   email_type?: string | null;
   email_provider?: string | null;
+  domain_available?: boolean | null;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -45,7 +48,11 @@ export function CrmFinderPage() {
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [nextPageToken, setNextPageToken] = useState<string | undefined>();
   const [searching, setSearching] = useState(false);
+  const [warmLeadsOnly, setWarmLeadsOnly] = useState(false);
+  const [hasEmailOnly, setHasEmailOnly] = useState(false);
+  const [needsWebsiteOnly, setNeedsWebsiteOnly] = useState(false);
   const [importing, setImporting] = useState<Set<string>>(new Set());
+  const [enriching, setEnriching] = useState<Set<string>>(new Set());
   const [imported, setImported] = useState<Set<string>>(new Set());
 
   async function handleSearch(pageToken?: string) {
@@ -62,6 +69,41 @@ export function CrmFinderPage() {
       toast(msg, 'error');
     } finally { setSearching(false); }
   }
+  async function enrichResult(place: PlaceResult) {
+    if (enriching.has(place.google_place_id)) return;
+    setEnriching((prev) => new Set(prev).add(place.google_place_id));
+    try {
+      const details = await apiRequest<{ phone: string | null; website: string | null; domain_available?: boolean }>('GET', `/api/crm/search/maps/details?place_id=${place.google_place_id}&business_name=${place.business_name}`);
+      let emailData: { email: string | null; type: string; provider: string | null } = { email: null, type: 'unknown', provider: null };
+      if (details.website) {
+        emailData = await apiRequest('POST', '/api/crm/check-email', { website: details.website });
+      }
+      setResults((prev) => prev.map((r) => r.google_place_id === place.google_place_id
+        ? { ...r, phone: details.phone, website: details.website, email: emailData.email, email_type: emailData.type, email_provider: emailData.provider, domain_available: details.domain_available }
+        : r));
+    } catch { 
+      // Silently fail enrichment
+    } finally {
+      setEnriching((prev) => { const s = new Set(prev); s.delete(place.google_place_id); return s; });
+    }
+  }
+
+  async function enrichAll() {
+    for (const place of results) {
+      await enrichResult(place);
+    }
+  }
+
+  const filteredResults = results.filter(r => {
+    if (warmLeadsOnly && r.email_type !== 'unprofessional') return false;
+    if (hasEmailOnly && !r.email) return false;
+    if (needsWebsiteOnly) {
+      const hasNoSite = !r.website;
+      const isSocialOnly = r.website?.includes('facebook.com') || r.website?.includes('instagram.com') || r.website?.includes('wa.me');
+      if (!hasNoSite && !isSocialOnly) return false;
+    }
+    return true;
+  });
 
   async function importContact(place: PlaceResult) {
     if (imported.has(place.google_place_id)) return;
@@ -118,34 +160,76 @@ export function CrmFinderPage() {
             {ZW_CITIES.map((c) => <option key={c}>{c}</option>)}
           </select>
         </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', minWidth: '180px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input type="checkbox" id="warmLeads" checked={warmLeadsOnly} onChange={(e) => setWarmLeadsOnly(e.target.checked)} />
+            <label htmlFor="warmLeads" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', cursor: 'pointer' }}>@gmail leads only</label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input type="checkbox" id="hasEmail" checked={hasEmailOnly} onChange={(e) => setHasEmailOnly(e.target.checked)} />
+            <label htmlFor="hasEmail" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', cursor: 'pointer' }}>Has contact email</label>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input type="checkbox" id="needsWebsite" checked={needsWebsiteOnly} onChange={(e) => setNeedsWebsiteOnly(e.target.checked)} />
+            <label htmlFor="needsWebsite" style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#ef4444', cursor: 'pointer' }}>🔥 Needs professional website</label>
+          </div>
+        </div>
         <button onClick={() => handleSearch()} disabled={searching || !query.trim()} style={{ background: 'var(--primary)', color: '#ffffff', border: 'none', borderRadius: '8px', padding: '0.75rem 1.75rem', fontWeight: 700, cursor: 'pointer', opacity: searching ? 0.7 : 1, boxShadow: 'var(--shadow-md)', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {searching ? <Loader2 className="animate-spin" size={18} /> : <Search size={18} />}
           {searching ? 'Scoping...' : 'Execute Search'}
         </button>
         {results.length > 0 && (
-          <button onClick={importAll} style={{ background: 'white', color: 'var(--ink)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem 1.75rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', boxShadow: 'var(--shadow-sm)', transition: 'all 0.2s' }}>
-            Batch Import ({results.length})
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button onClick={enrichAll} style={{ background: 'white', color: 'var(--ink)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', boxShadow: 'var(--shadow-sm)', transition: 'all 0.2s' }}>
+              Enrich All
+            </button>
+            <button onClick={importAll} style={{ background: 'white', color: 'var(--ink)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.75rem 1.25rem', fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem', boxShadow: 'var(--shadow-sm)', transition: 'all 0.2s' }}>
+              Batch Import ({results.length})
+            </button>
+          </div>
         )}
       </div>
 
-      {results.length > 0 && (
+      {filteredResults.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
-            {results.map((place) => {
+            {filteredResults.map((place) => {
               const isImported = imported.has(place.google_place_id);
               const isImporting = importing.has(place.google_place_id);
               return (
                 <div key={place.google_place_id} style={{ background: 'white', border: '1px solid var(--border)', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: 'var(--shadow-sm)', transition: 'transform 0.2s' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <p style={{ color: 'var(--ink)', fontWeight: 800, margin: 0, fontSize: '1rem', lineHeight: 1.3 }}>{place.business_name}</p>
-                    {place.rating && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--cream-2)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border)' }}>
-                        <Star size={12} fill="#fb8c00" stroke="#fb8c00" />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--ink)' }}>{place.rating}</span>
-                      </div>
-                    )}
-                  </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <p style={{ color: 'var(--ink)', fontWeight: 800, margin: 0, fontSize: '1rem', lineHeight: 1.3 }}>{place.business_name}</p>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                             {place.categories?.slice(0, 2).map((c) => (
+                               <span key={c} style={{ color: 'var(--muted)', fontSize: '0.625rem', padding: '2px 4px', background: 'var(--bg)', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 600 }}>{c}</span>
+                             ))}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                          {place.rating && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '2px', background: 'var(--cream-2)', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                              <Star size={10} fill="#fb8c00" stroke="#fb8c00" />
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--ink)' }}>{place.rating}</span>
+                            </div>
+                          )}
+                          {place.reviews_count && (
+                            <span style={{ fontSize: '0.625rem', color: 'var(--muted)', fontWeight: 600 }}>{place.reviews_count} reviews</span>
+                          )}
+                        </div>
+                    </div>
+                  
+                  {/* High-Value Target Logic */}
+                  {((place.reviews_count ?? 0) > 20 && (!place.website || place.website.includes('facebook.com'))) && (
+                    <div style={{ background: '#fef2f2', border: '1px solid #fee2e2', borderRadius: '8px', padding: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                       <span style={{ fontSize: '1.25rem' }}>🎯</span>
+                       <div>
+                          <p style={{ margin: 0, color: '#991b1b', fontWeight: 800, fontSize: '0.75rem' }}>HIGH-VALUE TARGET</p>
+                          <p style={{ margin: 0, color: '#b91c1c', fontSize: '0.65rem', fontWeight: 500 }}>Popular business ({place.reviews_count} reviews) but NO professional website!</p>
+                       </div>
+                    </div>
+                  )}
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted)' }}>
@@ -167,25 +251,50 @@ export function CrmFinderPage() {
                   </div>
 
                   <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <EmailBadge type={place.email_type} provider={place.email_provider} />
-                    <button onClick={() => importContact(place)} disabled={isImported || isImporting}
-                      style={{ 
-                        background: isImported ? 'rgba(21, 128, 61, 0.08)' : 'var(--primary)', 
-                        color: isImported ? '#15803d' : '#ffffff', 
-                        border: isImported ? '1px solid rgba(21, 128, 61, 0.2)' : 'none', 
-                        borderRadius: '6px', 
-                        padding: '0.5rem 1rem', 
-                        cursor: isImported ? 'default' : 'pointer', 
-                        fontWeight: 700, 
-                        fontSize: '0.8125rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        transition: 'all 0.2s'
-                      }}>
-                      {isImported ? <Check size={14} /> : isImporting ? <Loader2 size={14} className="animate-spin" /> : null}
-                      {isImported ? 'Imported' : isImporting ? 'Processing' : 'Import to CRM'}
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                       <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <EmailBadge type={place.email_type} provider={place.email_provider} />
+                          {(!place.website || place.website.includes('facebook.com')) && (
+                            <span style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              WEBSITE NEEDED 🔥
+                            </span>
+                          )}
+                       </div>
+                       {place.domain_available === true && <span style={{ color: '#15803d', fontSize: '0.7rem', fontWeight: 700 }}>Domain Available! ✅</span>}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      {(place.phone && typeof place.phone === 'string') && (
+                        <button 
+                          onClick={() => {
+                            const msg = encodeURIComponent(`Hi ${place.business_name}, I saw your listing in ${place.city} but noticed you don't have a professional website yet. I help businesses in Zimbabwe set up ZeeMail and professional websites. Are you interested?`);
+                            const cleanPhone = (place.phone as string).replace(/[^0-9]/g, '');
+                            window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
+                          }}
+                          style={{ background: '#25D366', color: 'white', border: 'none', borderRadius: '6px', padding: '0.5rem 0.75rem', cursor: 'pointer', fontWeight: 800, fontSize: '0.8125rem' }}
+                        >
+                           WhatsApp
+                        </button>
+                      )}
+                      <button onClick={() => importContact(place)} disabled={isImported || isImporting}
+                        style={{ 
+                          background: isImported ? 'rgba(21, 128, 61, 0.08)' : 'var(--primary)', 
+                          color: isImported ? '#15803d' : '#ffffff', 
+                          border: isImported ? '1px solid rgba(21, 128, 61, 0.2)' : 'none', 
+                          borderRadius: '6px', 
+                          padding: '0.5rem 1rem', 
+                          cursor: isImported ? 'default' : 'pointer', 
+                          fontWeight: 700, 
+                          fontSize: '0.8125rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          transition: 'all 0.2s'
+                        }}>
+                        {isImported ? <Check size={14} /> : isImporting ? <Loader2 size={14} className="animate-spin" /> : null}
+                        {isImported ? 'Imported' : isImporting ? 'Processing' : 'Import'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

@@ -27,6 +27,7 @@ import { PortalSupportPage } from './pages/portal/PortalSupportPage';
 import { PortalTicketDetailPage } from './pages/portal/PortalTicketDetailPage';
 import { AdminSupportPage } from './pages/admin/AdminSupportPage';
 import { AdminTicketDetailPage } from './pages/admin/AdminTicketDetailPage';
+import { MailcowDomainsPage } from './pages/admin/MailcowDomainsPage';
 
 function App() {
   return (
@@ -51,6 +52,7 @@ function App() {
           <Route path="clients/:id" element={<ClientDetailPage />} />
           <Route path="mailboxes" element={<MailboxesPage />} />
           <Route path="invoices" element={<InvoicesPage />} />
+          <Route path="mailcow-domains" element={<MailcowDomainsPage />} />
           <Route path="leads" element={<LeadsPage />} />
           <Route path="support" element={<AdminSupportPage />} />
           <Route path="support/:id" element={<AdminTicketDetailPage />} />

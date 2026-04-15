@@ -18,11 +18,40 @@ CREATE TABLE IF NOT EXISTS clients (
   domain                TEXT NOT NULL UNIQUE,
   plan                  TEXT NOT NULL CHECK (plan IN ('starter', 'business', 'pro')),
   mailbox_limit         INTEGER NOT NULL DEFAULT 5,
-  status                TEXT NOT NULL CHECK (status IN ('active', 'suspended', 'pending')),
+  status                TEXT NOT NULL,
+  domain_owned          BOOLEAN NOT NULL DEFAULT false,
+  mx_verified           BOOLEAN NOT NULL DEFAULT false,
+  mx_verified_at        TIMESTAMPTZ,
+  previous_email_provider TEXT,
+  paynow_reference      TEXT,
+  physical_address      TEXT,
+  full_name             TEXT,
+  email                 TEXT,
+  phone                 TEXT,
+  name_servers          TEXT[] DEFAULT '{}',
+  dns_status            TEXT DEFAULT 'unchecked',
+  dns_check_results     JSONB,
+  dns_last_checked      TIMESTAMPTZ,
+  cloudflare_zone_id    TEXT,
   domain_registered_at  TIMESTAMPTZ,
   next_renewal_date     TIMESTAMPTZ,
   notes                 TEXT,
   created_at            TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE clients DROP CONSTRAINT IF EXISTS clients_status_check;
+ALTER TABLE clients ADD CONSTRAINT clients_status_check CHECK (
+  status IN (
+    'active',
+    'suspended',
+    'pending',
+    'pending_payment',
+    'pending_domain',
+    'pending_dns',
+    'pending_mailboxes',
+    'pending_mx',
+    'provisioning_error'
+  )
 );
 
 -- 003: mailboxes
