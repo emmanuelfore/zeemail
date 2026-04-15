@@ -75,13 +75,8 @@ export function PortalAccountPage() {
         if (!cancelled && data && currentProfile) {
           setClient(data);
           setAddress(data.physical_address || '');
-<<<<<<< HEAD
           setFullName(currentProfile.full_name || '');
           setPhone(currentProfile.phone || '');
-=======
-          setFullName(profile.full_name || '');
-          setPhone(profile.phone || '');
->>>>>>> 7d7a145af8ec4fa5a843046524cac7cef90f3cdf
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to load account details';
@@ -398,11 +393,7 @@ export function PortalAccountPage() {
   );
 }
 
-<<<<<<< HEAD
 const inputStyle: CSSProperties = {
-=======
-const inputStyle: React.CSSProperties = {
->>>>>>> 7d7a145af8ec4fa5a843046524cac7cef90f3cdf
   width: '100%',
   background: 'var(--bg-card)',
   border: '1px solid var(--border)',

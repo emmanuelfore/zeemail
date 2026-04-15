@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import { Fragment, useEffect, useState, type CSSProperties } from 'react';
-=======
-import { useEffect, useState } from 'react';
->>>>>>> 7d7a145af8ec4fa5a843046524cac7cef90f3cdf
 import { apiRequest } from '../../lib/api';
 import { SkeletonLoader } from '../../components/shared/SkeletonLoader';
 import { EmptyState } from '../../components/shared/EmptyState';
@@ -20,11 +16,7 @@ interface MailcowDomain {
   mailboxes?: any[]; // For expansion
 }
 
-<<<<<<< HEAD
 const cardStyle: CSSProperties = {
-=======
-const cardStyle: React.CSSProperties = {
->>>>>>> 7d7a145af8ec4fa5a843046524cac7cef90f3cdf
   background: 'white',
   border: '1px solid var(--border)',
   borderRadius: '12px',
@@ -212,11 +204,7 @@ export function MailcowDomainsPage() {
             </thead>
             <tbody>
               {domains.map(d => (
-<<<<<<< HEAD
                 <Fragment key={d.domain}>
-=======
-                <React.Fragment key={d.domain}>
->>>>>>> 7d7a145af8ec4fa5a843046524cac7cef90f3cdf
                   <tr 
                     style={{ 
                       borderBottom: expandedDomain === d.domain ? 'none' : '1px solid var(--border)',
@@ -301,11 +289,7 @@ export function MailcowDomainsPage() {
                       </td>
                     </tr>
                   )}
-<<<<<<< HEAD
                 </Fragment>
-=======
-                </React.Fragment>
->>>>>>> 7d7a145af8ec4fa5a843046524cac7cef90f3cdf
               ))}
             </tbody>
           </table>
