@@ -24,6 +24,16 @@ export async function auth(
   const { data, error } = await supabaseAdmin.auth.getUser(token);
 
   if (error || !data.user) {
+    const isNetworkError = 
+      error?.message?.toLowerCase().includes('fetch failed') || 
+      error?.message?.toLowerCase().includes('timeout') ||
+      (error as any)?.code === 'UND_ERR_CONNECT_TIMEOUT';
+
+    if (isNetworkError) {
+      res.status(500).json({ error: 'Internal connection error', code: 'SERVER_ERROR' });
+      return;
+    }
+
     const isExpired =
       error?.message?.toLowerCase().includes('expired') ||
       error?.message?.toLowerCase().includes('token is expired');

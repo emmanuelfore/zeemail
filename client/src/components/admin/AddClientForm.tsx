@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
 import { apiRequest } from '../../lib/api';
 import { useToast } from '../../hooks/useToast';
 import type { Plan } from '../../types/index';
@@ -87,22 +86,17 @@ export function AddClientForm({ onSuccess, initialValues }: AddClientFormProps) 
     setErrors({});
     setSubmitting(true);
     try {
-      // 1. Call Mailcow proxy to add domain
-      await apiRequest('POST', '/api/domains/add', { domain: form.domain });
-
-      // 2. Insert Supabase client record
-      const { error: dbError } = await supabase.from('clients').insert({
-        company_name: form.company_name.trim(),
-        domain: form.domain.trim(),
-        plan: form.plan as Plan,
-        mailbox_limit: PLAN_MAILBOX_LIMIT[form.plan as Plan],
-        status: 'pending',
-        notes: form.notes.trim() || null,
+      // Combined call: creates client record AND triggers provisioning (Mailcow domain + mailboxes)
+      await apiRequest('POST', '/api/domains/add', {
+        domain: form.domain,
+        company_name: form.company_name,
+        plan: form.plan,
+        full_name: form.contact_name,
+        email: form.contact_email,
+        phone: form.contact_phone,
       });
 
-      if (dbError) throw dbError;
-
-      toast('Client added successfully', 'success');
+      toast('Client added and provisioned successfully', 'success');
       onSuccess?.();
     } catch (err: unknown) {
       const message =

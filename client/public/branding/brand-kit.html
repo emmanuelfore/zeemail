@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ZeeMail Logo Generator</title>
+    <!-- We load the exact font used in your React component -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@800;900&display=swap" rel="stylesheet">
+    <!-- html2canvas to convert the HTML/CSS exact replica into a downloadable PNG -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background: #f0f0f0; 
+            padding: 40px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 40px; 
+            margin: 0;
+        }
+        .intro {
+            text-align: center;
+            max-width: 600px;
+        }
+        .canvas-container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 20px; 
+            width: 100%;
+            overflow-x: auto;
+        }
+        
+        /* 
+           These styles scale up the React component's styles by exactly 10x 
+           (assuming a base size of 100 in the React component).
+           This gives a highly crisp, high-resolution logo suitable for socials.
+        */
+        .logo-full {
+            display: flex;
+            align-items: center;
+            gap: 60px;
+            font-weight: 800;
+            color: #8C1007;
+            font-size: 600px;
+            letter-spacing: -0.02em;
+            background: transparent;
+            padding: 60px; /* Padding to ensure drop shadow fits in generated image */
+        }
+
+        .logo-icon {
+            width: 1000px;
+            height: 900px;
+            background: #8C1007;
+            border-radius: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 500px;
+            font-weight: 900;
+            flex-shrink: 0;
+            box-shadow: 0 40px 120px rgba(140, 16, 7, 0.266); /* translated from #8C100744 */
+        }
+
+        .logo-text-wrapper {
+            position: relative;
+            line-height: 1;
+            /* Tweak padding for visual center */
+            padding-bottom: 20px; 
+        }
+
+        .logo-underline {
+            position: absolute;
+            bottom: -20px;
+            left: 0;
+            width: 40%;
+            height: 20px;
+            background: #8C1007;
+            opacity: 0.3;
+            border-radius: 10px;
+        }
+
+        .btn { 
+            padding: 16px 32px; 
+            background: #8C1007; 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 20px; 
+            cursor: pointer; 
+            font-weight: 800; 
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        .btn:hover { 
+            background: #6a0b05; 
+            transform: translateY(-2px);
+        }
+        
+        /* Exact square with transparent passing for the Icon Only version */
+        .icon-only-container {
+            padding: 80px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="intro">
+        <h1>ZeeMail Brand Assets</h1>
+        <p>Because the ZeeMail logo is dynamically built with perfectly crisp CSS code rather than an image file, this tool renders it exactly as designed at an ultra-high resolution and converts it to a transparent PNG for you to use on Twitter, LinkedIn, Instagram, etc.</p>
+    </div>
+
+    <!-- App Icon / Profile Picture -->
+    <div class="canvas-container">
+        <h2>App Icon (Square Profile Picture)</h2>
+        <p>Best for Twitter/X Profile Picture, Instagram Profile, or Favicon.</p>
+        <!-- Scale down via CSS for display, but it renders internally at 100% full scale -->
+        <div style="transform: scale(0.2); transform-origin: top center; height: 250px;">
+            <div id="icon-logo-export" class="icon-only-container">
+                <div class="logo-icon">Z</div>
+            </div>
+        </div>
+        <button class="btn" onclick="downloadLogo('icon-logo-export', 'zeemail-profile-icon.png')">Download Profile Picture (PNG)</button>
+    </div>
+
+    <!-- Full Logo Banner -->
+    <div class="canvas-container">
+        <h2>Full Logo (Headers / Banners)</h2>
+        <p>Best for website headers, GitHub READMEs, and Twitter Banners.</p>
+        <div style="transform: scale(0.15); transform-origin: top center; height: 250px; width: 100%; display: flex; justify-content: center;">
+            <div id="full-logo-export" class="logo-full">
+                <div class="logo-icon">Z</div>
+                <span class="logo-text-wrapper">
+                    ZeeMail
+                    <div class="logo-underline"></div>
+                </span>
+            </div>
+        </div>
+        <button class="btn" onclick="downloadLogo('full-logo-export', 'zeemail-full-logo.png')">Download Full Banner Logo (PNG)</button>
+    </div>
+
+    <script>
+        // Use html2canvas to safely capture the exact CSS rendering of the logos to a downloadable transparent PNG
+        function downloadLogo(elementId, filename) {
+            const elm = document.getElementById(elementId);
+            
+            // We temporarily ensure the element is visible on screen if scaled out
+            html2canvas(elm, { 
+                backgroundColor: null, // Force transparent background
+                scale: 1, // Render at 1x the HTML dimensions (which are already massive)
+                logging: false,
+                useCORS: true 
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }).catch(err => {
+                console.error("Failed to generate canvas:", err);
+                alert("Something went wrong generating the image. Check console for details.");
+            });
+        }
+    </script>
+</body>
+</html>

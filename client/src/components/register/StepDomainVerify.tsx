@@ -22,12 +22,13 @@ export default function StepDomainVerify({
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   async function handleVerify() {
-    const trimmed = domain.trim();
+    const trimmed = domain.trim().toLowerCase().replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
     if (!trimmed) return;
 
     setVerifyState('loading');
     setErrorMessage('');
     onProviderDetected(null);
+    onDomainChange(trimmed);
 
     try {
       // Check domain exists (any TLD — no tld param means server checks as-is)
@@ -65,6 +66,13 @@ export default function StepDomainVerify({
     }
   }
 
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') {
+      handleVerify();
+    }
+  }
+
+
   const canProceed = verifyState === 'confirmed';
 
   return (
@@ -88,6 +96,8 @@ export default function StepDomainVerify({
             setErrorMessage('');
             onProviderDetected(null);
           }}
+          onKeyDown={handleKeyDown}
+
           style={{
             flex: 1,
             padding: '0.625rem 0.875rem',

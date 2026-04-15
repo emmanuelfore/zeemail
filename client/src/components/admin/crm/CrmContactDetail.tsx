@@ -71,18 +71,36 @@ export function CrmContactDetail({ contact, onUpdate, onClose }: Props) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         {[
           ['Business', contact.business_name],
+          ['Owner', contact.owner_name],
           ['City', contact.city],
           ['Phone', contact.phone],
+          ['Phone 2', contact.phone_2],
           ['Email', contact.email],
           ['Website', contact.website],
           ['Industry', contact.industry],
-        ].map(([label, val]) => (
+          ['Category', contact.category],
+          ['Lead Quality', contact.lead_quality],
+        ].filter(([_, val]) => !!val).map(([label, val]) => (
           <div key={label as string}>
             <p style={{ color: 'var(--on-surface-variant)', fontSize: '0.75rem', margin: '0 0 0.2rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
-            <p style={{ color: 'var(--on-background)', margin: 0, fontFamily: label === 'Phone' || label === 'Email' ? 'JetBrains Mono, monospace' : undefined, fontSize: '0.8125rem' }}>{val ?? '—'}</p>
+            <p style={{ color: 'var(--on-background)', margin: 0, fontFamily: (label as string).includes('Phone') || label === 'Email' ? 'JetBrains Mono, monospace' : undefined, fontSize: '0.8125rem' }}>{val as string ?? '—'}</p>
           </div>
         ))}
       </div>
+
+      {contact.metadata && Object.keys(contact.metadata).length > 0 && (
+        <div style={{ background: 'var(--surface-container-low)', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+          <p style={{ color: 'var(--on-surface-variant)', fontSize: '0.75rem', margin: '0 0 0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Extra Details</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            {Object.entries(contact.metadata).map(([key, val]) => (
+              <div key={key}>
+                <p style={{ color: 'var(--on-surface-variant)', fontSize: '0.7rem', margin: 0 }}>{key.replace(/_/g, ' ')}</p>
+                <p style={{ color: 'var(--on-background)', margin: 0, fontSize: '0.75rem' }}>{String(val)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Stage */}
       <div>

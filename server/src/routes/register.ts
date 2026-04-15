@@ -191,6 +191,9 @@ router.post('/', async (req: Request, res: Response, next: NextFunction): Promis
       mailbox_limit: MAILBOX_LIMITS[plan as Plan],
       domain_owned: path === 'A',
       physical_address,
+      full_name,
+      email,
+      phone,
     };
 
     if (path === 'B' && previous_email_provider) {

@@ -22,25 +22,16 @@ import type { Plan } from '../types/index';
 // ---------------------------------------------------------------------------
 
 const PLAN_MAILBOXES: Record<Plan, Array<{ localPart: string; quotaMb: number }>> = {
-  starter: [{ localPart: 'info', quotaMb: 500 }],
+  starter: [{ localPart: 'info', quotaMb: 250 }],
   business: [
-    { localPart: 'info', quotaMb: 1024 },
-    { localPart: 'admin', quotaMb: 1024 },
-    { localPart: 'sales', quotaMb: 1024 },
-    { localPart: 'support', quotaMb: 1024 },
-    { localPart: 'accounts', quotaMb: 1024 },
+    { localPart: 'info', quotaMb: 250 },
+    { localPart: 'admin', quotaMb: 250 },
+    { localPart: 'sales', quotaMb: 250 },
   ],
   pro: [
-    { localPart: 'info', quotaMb: 2048 },
-    { localPart: 'admin', quotaMb: 2048 },
-    { localPart: 'sales', quotaMb: 2048 },
-    { localPart: 'support', quotaMb: 2048 },
-    { localPart: 'accounts', quotaMb: 2048 },
-    { localPart: 'hr', quotaMb: 2048 },
-    { localPart: 'ceo', quotaMb: 2048 },
-    { localPart: 'finance', quotaMb: 2048 },
-    { localPart: 'marketing', quotaMb: 2048 },
-    { localPart: 'ops', quotaMb: 2048 },
+    { localPart: 'info', quotaMb: 250 },
+    { localPart: 'admin', quotaMb: 250 },
+    { localPart: 'sales', quotaMb: 250 },
   ],
 };
 

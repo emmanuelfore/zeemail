@@ -80,29 +80,38 @@ async function mailcowFetch(
   url: string,
   apiKey: string,
   options: RequestInit = {}
-): Promise<Response> {
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'X-API-Key': apiKey,
-        'Content-Type': 'application/json',
-        ...(options.headers ?? {}),
-      },
-    });
-    return response;
-  } catch (err) {
+): Promise<MailcowResponse> {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'X-API-Key': apiKey,
+      'Content-Type': 'application/json',
+      ...(options.headers ?? {}),
+    },
+  }).catch((err) => {
     if (isNetworkError(err)) {
       throw new MailcowUnavailableError();
     }
     throw err;
+  });
+
+  const data = await response.json() as any;
+
+  // Handle Mailcow error responses
+  // They often come as an array of objects: [{ type: 'error', msg: '...' }]
+  // or a single object: { type: 'error', msg: '...' }
+  const normalized = Array.isArray(data) ? data[0] : data;
+  if (normalized?.type === 'error' && !normalized.msg?.includes('already exists')) {
+    throw new Error(`Mailcow error: ${normalized.msg}`);
   }
+
+  return data;
 }
 
 export const mailcowService: MailcowService = {
   async addDomain(domain: string): Promise<MailcowResponse> {
     const { host, apiKey } = getEnv();
-    const response = await mailcowFetch(`${host}/api/v1/add/domain`, apiKey, {
+    return mailcowFetch(`${host}/api/v1/add/domain`, apiKey, {
       method: 'POST',
       body: JSON.stringify({
         domain,
@@ -116,96 +125,121 @@ export const mailcowService: MailcowService = {
         relay_all_recipients: 0,
       }),
     });
-    return response.json();
   },
 
   async deleteDomain(domain: string): Promise<MailcowResponse> {
     const { host, apiKey } = getEnv();
-    const response = await mailcowFetch(`${host}/api/v1/delete/domain`, apiKey, {
+    return mailcowFetch(`${host}/api/v1/delete/domain`, apiKey, {
       method: 'POST',
       body: JSON.stringify([domain]),
     });
-    return response.json();
   },
 
   async addMailbox(params: AddMailboxParams): Promise<MailcowResponse> {
     const { host, apiKey } = getEnv();
-    const response = await mailcowFetch(`${host}/api/v1/add/mailbox`, apiKey, {
+    return mailcowFetch(`${host}/api/v1/add/mailbox`, apiKey, {
       method: 'POST',
       body: JSON.stringify(params),
     });
-    return response.json();
   },
 
   async getMailboxes(domain: string): Promise<MailcowMailbox[]> {
     const { host, apiKey } = getEnv();
-    const response = await mailcowFetch(
+    return (await mailcowFetch(
       `${host}/api/v1/get/mailbox/all/${domain}`,
       apiKey,
       { method: 'GET' }
-    );
-    return response.json();
+    )) as unknown as MailcowMailbox[];
   },
 
   async updateMailbox(email: string, attrs: Partial<MailcowMailbox>): Promise<MailcowResponse> {
     const { host, apiKey } = getEnv();
-    const response = await mailcowFetch(`${host}/api/v1/edit/mailbox`, apiKey, {
+    return mailcowFetch(`${host}/api/v1/edit/mailbox`, apiKey, {
       method: 'POST',
       body: JSON.stringify({ items: [email], attr: attrs }),
     });
-    return response.json();
   },
 
   async deleteMailbox(email: string): Promise<MailcowResponse> {
     const { host, apiKey } = getEnv();
-    const response = await mailcowFetch(`${host}/api/v1/delete/mailbox`, apiKey, {
+    return mailcowFetch(`${host}/api/v1/delete/mailbox`, apiKey, {
       method: 'POST',
       body: JSON.stringify([email]),
     });
-    return response.json();
   },
 
   async resetPassword(email: string, password: string): Promise<MailcowResponse> {
     const { host, apiKey } = getEnv();
-    const response = await mailcowFetch(`${host}/api/v1/edit/mailbox`, apiKey, {
+    return mailcowFetch(`${host}/api/v1/edit/mailbox`, apiKey, {
       method: 'POST',
       body: JSON.stringify({ items: [email], attr: { password, password2: password } }),
     });
-    return response.json();
   },
 
   async getOverviewStats(): Promise<MailcowStats> {
     const { host, apiKey } = getEnv();
-    const response = await mailcowFetch(
+    return mailcowFetch(
       `${host}/api/v1/get/status/containers`,
       apiKey,
       { method: 'GET' }
     );
-    return response.json();
   },
 
   async getMailboxStats(email: string): Promise<MailcowMailboxStats> {
     const { host, apiKey } = getEnv();
-    const response = await mailcowFetch(
+    return mailcowFetch(
       `${host}/api/v1/get/mailbox/${email}`,
       apiKey,
       { method: 'GET' }
     );
-    return response.json();
   },
 
   async getDkim(domain: string): Promise<{ dkim_txt: string; pubkey: string } | null> {
     const { host, apiKey } = getEnv();
-    const response = await mailcowFetch(
+    const data = (await mailcowFetch(
       `${host}/api/v1/get/dkim/${domain}`,
       apiKey,
       { method: 'GET' }
-    );
-    const data = (await response.json()) as any;
+    )) as any;
     if (data && data.dkim_txt) {
       // Sometimes it returns the exact string like v=DKIM1;k=rsa;p=...
       return { dkim_txt: data.dkim_txt, pubkey: data.pubkey };
     }
     return null;
+  },
+
+  async getDomain(domain: string): Promise<any | null> {
+    const { host, apiKey } = getEnv();
+    try {
+      const data = await mailcowFetch(`${host}/api/v1/get/domain/${domain}`, apiKey, {
+        method: 'GET',
+      });
+      // Mailcow returns an object for the domain if it exists, or empty array/null if not
+      if (data && (Array.isArray(data) ? data.length > 0 : data.domain === domain)) {
+        return Array.isArray(data) ? data[0] : data;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  async getDomains(): Promise<any[]> {
+    const { host, apiKey } = getEnv();
+    const data = await mailcowFetch(`${host}/api/v1/get/domain/all`, apiKey, {
+      method: 'GET',
+    });
+    const domains = Array.isArray(data) ? data : [];
+    
+    // Normalize fields for frontend
+    return domains.map(d => ({
+      domain: d.domain,
+      description: d.description,
+      max_quota: Number(d.quota), // Mailcow returns max quota in MiB
+      quota_used: Math.round(Number(d.quota_used) / 1024 / 1024), // Mailcow returns used in Bytes, convert to MiB
+      max_mailboxes: Number(d.max_mailboxes),
+      mailboxes_count: Number(d.mboxes_in_domain || 0),
+      active: d.active === "1" || d.active === 1 ? 1 : 0
+    }));
   },
 };

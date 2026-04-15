@@ -82,7 +82,6 @@ export function AdminSupportPage() {
           <EmptyState 
             heading="No tickets found" 
             subtext="Everything is quiet in the support queue." 
-            icon={<LifeBuoy size={48} />}
           />
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>

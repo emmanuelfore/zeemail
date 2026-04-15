@@ -7,6 +7,8 @@ import { mailcowService } from '../services/mailcow';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { Plan } from '../types';
 
+import { ProvisioningEngine } from '../services/provisioning';
+
 const router = Router();
 
 const MAILBOX_LIMITS: Record<Plan, number> = {
@@ -16,38 +18,49 @@ const MAILBOX_LIMITS: Record<Plan, number> = {
 };
 
 router.post('/add', auth, requireRole('admin'), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  const { domain, company_name, plan } = req.body as { domain?: string; company_name?: string; plan?: Plan };
+  const { domain, company_name, plan, full_name, email, phone } = req.body as { 
+    domain?: string; 
+    company_name?: string; 
+    plan?: Plan;
+    full_name?: string;
+    email?: string;
+    phone?: string;
+  };
 
   if (!domain || !company_name || !plan || !MAILBOX_LIMITS[plan]) {
     res.status(422).json({ error: 'domain, company_name, and plan are required', code: 'VALIDATION_ERROR' });
     return;
   }
-
   try {
-    await mailcowService.addDomain(domain);
-
-    const { data, error } = await supabaseAdmin
+    // 1. Create client record first
+    const { data: client, error: dbError } = await supabaseAdmin
       .from('clients')
       .insert({
         company_name,
-        domain,
+        domain: domain.trim().toLowerCase(),
         plan,
+        full_name,
+        email,
+        phone,
         status: 'pending',
         mailbox_limit: MAILBOX_LIMITS[plan],
+        domain_owned: false, // Default to Path B for manual adds unless specified
       })
       .select('id')
       .single();
 
-    if (error) {
-      next(error);
-      return;
-    }
+    if (dbError) throw dbError;
 
-    res.status(201).json({ id: data.id });
+    // 2. Trigger Path B provisioning (Mailcow domain + Mailboxes)
+    // We await this one so the admin knows if it worked immediately
+    await ProvisioningEngine.runPathB(client.id);
+
+    res.status(201).json({ id: client.id });
   } catch (err) {
     next(err);
   }
 });
+
 
 router.delete('/:domain', auth, requireRole('admin'), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const { domain } = req.params;

@@ -66,12 +66,86 @@ const btnDanger: React.CSSProperties = {
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
+function PortalAccountCard({ profileId }: { profileId: string | null }) {
+  const { toast } = useToast();
+  const [account, setAccount] = useState<{ email: string; last_sign_in: string | null } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!profileId) return;
+    async function fetchAccount() {
+      setLoading(true);
+      try {
+        const res = await apiRequest<{ email: string; last_sign_in: string | null }>('GET', `/api/auth/users/${profileId}`);
+        setAccount(res);
+      } catch (err: any) {
+        console.error('Failed to fetch portal account:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAccount();
+  }, [profileId]);
+
+  async function handleResetPassword() {
+    if (!profileId) return;
+    const newPwd = window.prompt('Enter new portal password (min 8 characters):');
+    if (!newPwd) return;
+    if (newPwd.length < 8) {
+      toast('Password too short', 'error');
+      return;
+    }
+
+    try {
+      await apiRequest('POST', `/api/auth/reset-password/${profileId}`, { password: newPwd });
+      toast('Portal password reset successfully', 'success');
+    } catch (err: any) {
+      toast(err.error || 'Failed to reset password', 'error');
+    }
+  }
+
+  if (!profileId) return null;
+
+  return (
+    <div style={cardStyle}>
+      <h3 style={{ color: 'var(--on-background)', margin: '0 0 1rem', fontSize: '1rem', fontWeight: 600 }}>Portal Account & Access</h3>
+      {loading ? (
+        <SkeletonLoader height="40px" borderRadius="6px" />
+      ) : account ? (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <p style={{ color: 'var(--on-surface-variant)', fontSize: '0.75rem', margin: '0 0 0.25rem' }}>Login Email</p>
+            <p style={{ color: 'var(--on-background)', fontWeight: 600, margin: 0 }}>{account.email}</p>
+            <p style={{ color: 'var(--on-surface-variant)', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+              Last activity: {account.last_sign_in ? new Date(account.last_sign_in).toLocaleString() : 'Never'}
+            </p>
+          </div>
+          <button style={btnGhost} onClick={handleResetPassword}>
+            Reset Portal Password
+          </button>
+        </div>
+      ) : (
+        <p style={{ color: 'var(--on-surface-variant)', fontSize: '0.875rem' }}>Account details unavailable.</p>
+      )}
+    </div>
+  );
+}
+
 interface OverviewTabProps {
   client: Client;
   onClientUpdated: (c: Client) => void;
+  provisioned: boolean | null;
+  provisioning: boolean;
+  onProvision: () => void;
 }
 
-function OverviewTab({ client, onClientUpdated }: OverviewTabProps) {
+function OverviewTab({ 
+  client, 
+  onClientUpdated, 
+  provisioned, 
+  provisioning, 
+  onProvision 
+}: OverviewTabProps) {
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -236,8 +310,12 @@ function OverviewTab({ client, onClientUpdated }: OverviewTabProps) {
           </div>
         )}
       </div>
+      
+      {/* Portal Account card */}
+      <PortalAccountCard profileId={client.profile_id} />
 
       <div style={cardStyle}>
+
         <h3 style={{ color: 'var(--on-background)', margin: '0 0 1rem', fontSize: '1rem', fontWeight: 600 }}>Provisioning Control</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ padding: '1rem', background: client.dns_status === 'healthy' ? 'rgba(134, 239, 172, 0.1)' : 'rgba(252, 165, 165, 0.1)', borderRadius: '8px', border: '1px solid var(--border)' }}>
@@ -261,9 +339,9 @@ function OverviewTab({ client, onClientUpdated }: OverviewTabProps) {
               </button>
             </div>
 
-            {client.dns_check_results && (
+            {client.dns_check_results && typeof client.dns_check_results === 'object' && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
-                {Object.entries(client.dns_check_results).map(([record, passed]) => (
+                {Object.entries(client.dns_check_results as Record<string, boolean>).map(([record, passed]) => (
                   <div key={record} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--surface)', padding: '0.5rem 0.75rem', borderRadius: '4px' }}>
                     <span style={{ fontSize: '1rem' }}>{passed ? '✅' : '❌'}</span>
                     <span style={{ color: 'var(--on-background)', fontWeight: 500, fontSize: '0.875rem' }}>{record} record</span>
@@ -273,8 +351,8 @@ function OverviewTab({ client, onClientUpdated }: OverviewTabProps) {
               </div>
             )}
 
-            {client.dns_status !== 'healthy' && (
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
                 
                 <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.875rem' }}>
                   <p style={{ margin: '0 0 0.75rem', fontWeight: 600, color: 'var(--on-background)' }}>Required Records for Manual Setup</p>
@@ -332,7 +410,8 @@ function OverviewTab({ client, onClientUpdated }: OverviewTabProps) {
                   </button>
                 </div>
               </div>
-            )}
+
+
 
           </div>
 
@@ -346,9 +425,18 @@ function OverviewTab({ client, onClientUpdated }: OverviewTabProps) {
               </p>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
+              {provisioned === false && (
+                <button 
+                  style={{ ...btnPrimary, background: '#f59e0b', color: '#000000' }} 
+                  onClick={onProvision}
+                  disabled={provisioning}
+                >
+                  {provisioning ? 'Provisioning...' : 'Provision Client'}
+                </button>
+              )}
               {client.status === 'provisioning_error' && (
                 <button style={{ ...btnPrimary, background: '#f59e0b', color: '#000000' }} onClick={handleVerifyDns}>
-                  Retry Provisioning
+                  Retry Verification
                 </button>
               )}
               <button
@@ -881,6 +969,8 @@ export function ClientDetailPage() {
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [provisioned, setProvisioned] = useState<boolean | null>(null);
+  const [provisioning, setProvisioning] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -895,6 +985,10 @@ export function ClientDetailPage() {
           .single();
         if (error) throw error;
         if (!cancelled) setClient(data as Client);
+
+        // Check provisioning status
+        const status = await apiRequest<{ provisioned: boolean }>('GET', `/api/clients/${id}/provision-status`);
+        if (!cancelled) setProvisioned(status.provisioned);
       } catch (err: unknown) {
         toast(err instanceof Error ? err.message : 'Failed to load client', 'error');
       } finally {
@@ -904,6 +998,26 @@ export function ClientDetailPage() {
     fetchClient();
     return () => { cancelled = true; };
   }, [id, toast]);
+
+  async function handleProvision() {
+    if (!id) return;
+    const confirm = window.confirm('This will create the domain in Mailcow and set up default mailboxes. Continue?');
+    if (!confirm) return;
+
+    setProvisioning(true);
+    try {
+      await apiRequest('POST', `/api/clients/${id}/provision`);
+      toast('Provisioning successful!', 'success');
+      setProvisioned(true);
+      // Refresh client data
+      const { data, error } = await supabase.from('clients').select('*').eq('id', id).single();
+      if (!error && data) setClient(data as Client);
+    } catch (err: any) {
+      toast(err.error || 'Provisioning failed', 'error');
+    } finally {
+      setProvisioning(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -963,7 +1077,13 @@ export function ClientDetailPage() {
 
       {/* Tab content */}
       {activeTab === 'overview' && (
-        <OverviewTab client={client} onClientUpdated={setClient} />
+        <OverviewTab 
+          client={client} 
+          onClientUpdated={setClient} 
+          provisioned={provisioned}
+          provisioning={provisioning}
+          onProvision={handleProvision}
+        />
       )}
       {activeTab === 'mailboxes' && (
         <MailboxesTab clientId={client.id} clientDomain={client.domain} />

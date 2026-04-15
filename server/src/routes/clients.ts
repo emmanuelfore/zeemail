@@ -18,6 +18,36 @@ import { runSingleHealthCheck } from '../jobs/dnsHealthCheck';
 const router = Router();
 
 // ---------------------------------------------------------------------------
+// GET /api/clients/:id/provision-status
+// Admin-only: Check if the domain and mailboxes actually exist in Mailcow.
+// ---------------------------------------------------------------------------
+
+router.get(
+  '/:id/provision-status',
+  auth,
+  requireRole('admin'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const { id } = req.params;
+
+    try {
+      const { data: client, error } = await supabaseAdmin.from('clients').select('domain').eq('id', id).single();
+      if (error || !client) {
+        res.status(404).json({ error: 'Client not found' });
+        return;
+      }
+
+      // 1. Check if domain exists in Mailcow
+      const mcDomain = await mailcowService.getDomain(client.domain);
+      const provisioned = !!mcDomain;
+
+      res.json({ provisioned });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
 // POST /api/clients/:id/provision
 // Admin-only: trigger full provisioning sequence based on domain_owned flag.
 // Requirements: 10.3, 10.5, 11.1, 12.1

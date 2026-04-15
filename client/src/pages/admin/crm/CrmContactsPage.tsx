@@ -13,17 +13,21 @@ export interface CrmContact {
   business_name: string | null;
   owner_name: string | null;
   phone: string | null;
+  phone_2: string | null;
   email: string | null;
   email_type: 'professional' | 'unprofessional' | 'unknown' | null;
   email_provider: string | null;
   website: string | null;
   industry: string | null;
+  category: string | null;
   city: string | null;
   address: string | null;
   google_place_id: string | null;
   source: string | null;
   pipeline_stage: string;
   pipeline_notes: string | null;
+  lead_quality: string | null;
+  metadata: Record<string, any> | null;
   last_contacted_at: string | null;
   follow_up_date: string | null;
   created_at: string;
@@ -67,7 +71,9 @@ export function CrmContactsPage() {
       list = list.filter((c) =>
         c.business_name?.toLowerCase().includes(q) ||
         c.city?.toLowerCase().includes(q) ||
-        c.email?.toLowerCase().includes(q)
+        c.email?.toLowerCase().includes(q) ||
+        c.industry?.toLowerCase().includes(q) ||
+        c.lead_quality?.toLowerCase().includes(q)
       );
     }
     return list;
@@ -104,7 +110,7 @@ export function CrmContactsPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Business', 'City', 'Phone', 'Email', 'Stage', 'Source'].map((h) => (
+                  {['Business', 'City', 'Phone', 'Quality', 'Stage', 'Source'].map((h) => (
                     <th key={h} style={{ padding: '0.625rem 0.75rem', color: 'var(--on-surface-variant)', fontWeight: 600, textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -117,7 +123,20 @@ export function CrmContactsPage() {
                     <td style={{ padding: '0.75rem', color: 'var(--on-background)', fontWeight: 500 }}>{c.business_name ?? '—'}</td>
                     <td style={{ padding: '0.75rem', color: 'var(--on-surface-variant)' }}>{c.city ?? '—'}</td>
                     <td style={{ padding: '0.75rem', color: 'var(--on-surface-variant)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.8125rem' }}>{c.phone ?? '—'}</td>
-                    <td style={{ padding: '0.75rem' }}><EmailBadge type={c.email_type} provider={c.email_provider} /></td>
+                    <td style={{ padding: '0.75rem' }}>
+                      {c.lead_quality ? (
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          fontWeight: 600, 
+                          color: c.lead_quality.includes('HOT') ? '#f87171' : c.lead_quality.includes('WARM') ? '#fbbf24' : 'var(--on-surface-variant)',
+                          background: c.lead_quality.includes('HOT') ? 'rgba(248,113,113,0.1)' : c.lead_quality.includes('WARM') ? 'rgba(251,191,36,0.1)' : 'transparent',
+                          padding: '2px 6px',
+                          borderRadius: '4px'
+                        }}>
+                          {c.lead_quality}
+                        </span>
+                      ) : '—'}
+                    </td>
                     <td style={{ padding: '0.75rem', color: 'var(--on-surface-variant)', textTransform: 'capitalize' }}>{c.pipeline_stage}</td>
                     <td style={{ padding: '0.75rem', color: 'var(--on-surface-variant)', fontSize: '0.75rem' }}>{c.source ?? '—'}</td>
                   </tr>

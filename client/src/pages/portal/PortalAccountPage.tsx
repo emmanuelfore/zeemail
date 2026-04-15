@@ -16,7 +16,7 @@ const PLAN_PRICE: Record<Plan, number> = {
 const PLAN_MAILBOX_LIMIT: Record<Plan, number> = {
   starter: 1,
   business: 5,
-  pro: 20,
+  pro: 10,
 };
 
 const cardStyle: React.CSSProperties = {
@@ -46,8 +46,15 @@ export function PortalAccountPage() {
 
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [savingPhone, setSavingPhone] = useState(false);
+  const [address, setAddress] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  
   const [upgradingPlan, setUpgradingPlan] = useState(false);
 
   useEffect(() => {
@@ -66,6 +73,9 @@ export function PortalAccountPage() {
         if (error) throw error;
         if (!cancelled && data) {
           setClient(data);
+          setAddress(data.physical_address || '');
+          setFullName(profile.full_name || '');
+          setPhone(profile.phone || '');
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to load account details';
@@ -79,29 +89,61 @@ export function PortalAccountPage() {
     return () => { cancelled = true; };
   }, [profile?.id, toast]);
 
-  // Pre-fill phone from profile
-  useEffect(() => {
-    if (profile?.phone != null) {
-      setPhone(profile.phone);
-    }
-  }, [profile?.phone]);
-
-  async function handleSavePhone() {
-    if (!profile?.id) return;
-    setSavingPhone(true);
+  async function handleSaveProfile() {
+    if (!profile?.id || !client) return;
+    setSavingProfile(true);
     try {
-      const { error } = await supabase
+      // 1. Update profiles table
+      const { error: profileError } = await supabase
         .from('profiles')
-        .update({ phone })
+        .update({ 
+          full_name: fullName,
+          phone: phone 
+        })
         .eq('id', profile.id);
 
-      if (error) throw error;
-      toast('Phone number updated', 'success');
+      if (profileError) throw profileError;
+
+      // 2. Update clients table (for address)
+      const { error: clientError } = await supabase
+        .from('clients')
+        .update({ physical_address: address })
+        .eq('id', client.id);
+
+      if (clientError) throw clientError;
+
+      toast('Profile updated successfully', 'success');
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to update phone number';
+      const message = err instanceof Error ? err.message : 'Failed to update profile';
       toast(message, 'error');
     } finally {
-      setSavingPhone(false);
+      setSavingProfile(false);
+    }
+  }
+
+  async function handleChangePassword() {
+    if (!newPassword || newPassword.length < 8) {
+      toast('Password must be at least 8 characters', 'error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast('Passwords do not match', 'error');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      
+      setNewPassword('');
+      setConfirmPassword('');
+      toast('Password updated successfully', 'success');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to change password';
+      toast(message, 'error');
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -244,61 +286,120 @@ export function PortalAccountPage() {
       {/* Contact details card */}
       <div style={cardStyle}>
         <h2 style={{ color: 'var(--text-cream, var(--on-background))', margin: '0 0 1.25rem', fontSize: '1rem', fontWeight: 700 }}>
-          Contact Details
+          Profile & Contact
         </h2>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <label style={labelStyle}>Full Name</label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+            <div>
+              <label style={labelStyle}>Phone Number</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div>
+              <label style={labelStyle}>Physical Address</label>
+              <textarea
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                rows={3}
+                style={{ ...inputStyle, resize: 'vertical' }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={handleSaveProfile}
+          disabled={savingProfile}
+          style={{
+            marginTop: '1.5rem',
+            background: 'var(--primary)',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '0.625rem 1.5rem',
+            fontWeight: 600,
+            cursor: savingProfile ? 'not-allowed' : 'pointer',
+            opacity: savingProfile ? 0.7 : 1,
+          }}
+        >
+          {savingProfile ? 'Saving...' : 'Update Profile'}
+        </button>
+      </div>
+
+      {/* Security card */}
+      <div style={cardStyle}>
+        <h2 style={{ color: 'var(--text-cream, var(--on-background))', margin: '0 0 1.25rem', fontSize: '1rem', fontWeight: 700 }}>
+          Security
+        </h2>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
           <div>
-            <label
-              htmlFor="phone-input"
-              style={{ ...labelStyle, display: 'block', marginBottom: '0.5rem' }}
-            >
-              Phone Number
-            </label>
+            <label style={labelStyle}>New Password</label>
             <input
-              id="phone-input"
-              data-testid="phone-input"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+263 77 123 4567"
-              style={{
-                width: '100%',
-                background: 'var(--bg-page, var(--surface))',
-                border: '1px solid var(--border, var(--border))',
-                borderRadius: '8px',
-                padding: '0.625rem 0.875rem',
-                color: 'var(--text-cream, var(--on-background))',
-                fontSize: '0.9rem',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Minimum 8 characters"
+              style={inputStyle}
             />
           </div>
-
-          <button
-            data-testid="save-phone-btn"
-            onClick={handleSavePhone}
-            disabled={savingPhone}
-            style={{
-              alignSelf: 'flex-start',
-              background: 'var(--primary, var(--primary))',
-              color: 'var(--text-cream, var(--on-background))',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '0.625rem 1.25rem',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              cursor: savingPhone ? 'not-allowed' : 'pointer',
-              opacity: savingPhone ? 0.7 : 1,
-            }}
-          >
-            {savingPhone ? 'Saving…' : 'Save'}
-          </button>
+          <div>
+            <label style={labelStyle}>Confirm Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
         </div>
+
+        <button
+          onClick={handleChangePassword}
+          disabled={changingPassword}
+          style={{
+            marginTop: '1.5rem',
+            background: 'transparent',
+            color: 'var(--text-cream)',
+            border: '1px solid var(--primary)',
+            borderRadius: '8px',
+            padding: '0.625rem 1.5rem',
+            fontWeight: 600,
+            cursor: changingPassword ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {changingPassword ? 'Updating...' : 'Change Password'}
+        </button>
       </div>
     </div>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border)',
+  borderRadius: '8px',
+  padding: '0.625rem 0.875rem',
+  color: 'var(--text-cream)',
+  fontSize: '0.9rem',
+  outline: 'none',
+  boxSizing: 'border-box',
+};

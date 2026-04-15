@@ -10,6 +10,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { PaynowService, PaynowUnavailableError } from '../services/paynow';
+import { ProvisioningEngine } from '../services/provisioning';
 
 const router = Router();
 
@@ -123,6 +124,15 @@ router.post(
       if (updateError) {
         next(updateError);
         return;
+      }
+
+      // 4. TRIGGER ASYNCHRONOUS PROVISIONING (Requirements 11.1, 12.1)
+      // We don't await this as we want to respond to Paynow quickly.
+      // The ProvisioningEngine handles its own errors by setting 'provisioning_error' status.
+      if (client.domain_owned) {
+        ProvisioningEngine.runPathA(client.id).catch(console.error);
+      } else {
+        ProvisioningEngine.runPathB(client.id).catch(console.error);
       }
 
       res.status(200).send('ok');

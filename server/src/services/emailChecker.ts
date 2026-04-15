@@ -24,13 +24,49 @@ export function checkEmailProfessionalism(email: string) {
 }
 
 export async function scrapeEmailFromWebsite(website: string): Promise<string | null> {
+  const visited = new Set<string>();
+  const toVisit = [website];
+  const maxPages = 3;
+  
+  // Clean URL helper
+  const cleanUrl = (url: string, base: string) => {
+    try {
+      const u = new URL(url, base);
+      return u.origin === new URL(base).origin ? u.href : null;
+    } catch { return null; }
+  };
+
   try {
-    const res = await fetch(website, { signal: AbortSignal.timeout(5000) });
-    const html = await res.text();
-    const matches = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-    if (!matches) return null;
-    return matches.find((e) => !e.includes('.png') && !e.includes('.jpg')) ?? null;
-  } catch {
-    return null;
+    for (let i = 0; i < toVisit.length && visited.size < maxPages; i++) {
+      const url = toVisit[i];
+      if (visited.has(url)) continue;
+      visited.add(url);
+
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000), headers: { 'User-Agent': 'Mozilla/5.0 ZeeMailCrawler/1.0' } });
+      if (!res.ok) continue;
+      const html = await res.text();
+      
+      // 1. Find emails
+      const matches = html.match(/[a-zA-Z0-9._%+-]+@(?!(?:png|jpg|jpeg|gif|webp|svg|pdf|zip)$)[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
+      if (matches) {
+        const email = matches.find((e) => !e.toLowerCase().includes('.png') && !e.toLowerCase().includes('.jpg'));
+        if (email) return email.toLowerCase();
+      }
+
+      // 2. If it's the first page, look for 'Contact' or 'About' links to follow
+      if (visited.size === 1) {
+        const linkMatches = html.matchAll(/href="([^"]+)"/g);
+        for (const match of linkMatches) {
+          const href = match[1].toLowerCase();
+          if (href.includes('contact') || href.includes('about') || href.includes('reach-us')) {
+            const absolute = cleanUrl(match[1], website);
+            if (absolute && !visited.has(absolute)) toVisit.push(absolute);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Deep scrape failed:', err);
   }
+  return null;
 }

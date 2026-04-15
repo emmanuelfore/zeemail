@@ -4,14 +4,27 @@ import type { Mailbox } from '../../types/index';
 
 interface MailboxRowProps {
   mailbox: Mailbox;
+  plan: string;
   onResetPassword: (email: string, newPassword: string) => Promise<void>;
+  onUpdateQuota: (email: string, newQuota: number) => Promise<void>;
 }
 
-export function MailboxRow({ mailbox, onResetPassword }: MailboxRowProps) {
-  const [showModal, setShowModal] = useState(false);
+export function MailboxRow({ mailbox, plan, onResetPassword, onUpdateQuota }: MailboxRowProps) {
+  const [showPwModal, setShowPwModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [resetting, setResetting] = useState(false);
   const [pwError, setPwError] = useState('');
+
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
+  const [newQuota, setNewQuota] = useState(mailbox.quota_mb.toString());
+  const [updatingQuota, setUpdatingQuota] = useState(false);
+  const [quotaError, setQuotaError] = useState('');
+
+  const planMax = {
+    'starter': 2048,
+    'business': 5120,
+    'pro': 10240
+  }[plan?.toLowerCase()] || 2048;
 
   async function handleReset() {
     if (!newPassword.trim()) {
@@ -26,17 +39,45 @@ export function MailboxRow({ mailbox, onResetPassword }: MailboxRowProps) {
     setPwError('');
     try {
       await onResetPassword(mailbox.email, newPassword);
-      setShowModal(false);
+      setShowPwModal(false);
       setNewPassword('');
     } finally {
       setResetting(false);
     }
   }
 
-  function closeModal() {
-    setShowModal(false);
+  async function handleUpdateQuota() {
+    const q = parseInt(newQuota);
+    if (isNaN(q) || q <= 0) {
+      setQuotaError('Please enter a valid number');
+      return;
+    }
+    if (q > planMax) {
+      setQuotaError(`Your plan maximum is ${planMax / 1024} GB per mailbox.`);
+      return;
+    }
+    setUpdatingQuota(true);
+    setQuotaError('');
+    try {
+      await onUpdateQuota(mailbox.email, q);
+      setShowQuotaModal(false);
+    } catch (err: any) {
+      setQuotaError(err.error || 'Failed to update quota');
+    } finally {
+      setUpdatingQuota(false);
+    }
+  }
+
+  function closePwModal() {
+    setShowPwModal(false);
     setNewPassword('');
     setPwError('');
+  }
+
+  function closeQuotaModal() {
+    setShowQuotaModal(false);
+    setNewQuota(mailbox.quota_mb.toString());
+    setQuotaError('');
   }
 
   return (
@@ -86,11 +127,38 @@ export function MailboxRow({ mailbox, onResetPassword }: MailboxRowProps) {
                 }}
               />
             </div>
-            <span style={{ color: 'var(--muted)', fontSize: '0.75rem', fontWeight: 600 }}>
-              {(mailbox.quota_used_mb ?? 0).toFixed(1)} MB / {mailbox.quota_mb >= 1024
-                ? `${(mailbox.quota_mb / 1024).toFixed(1)} GB`
-                : `${mailbox.quota_mb} MB`}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--muted)', fontSize: '0.75rem', fontWeight: 600 }}>
+                {(mailbox.quota_used_mb ?? 0).toFixed(1)} MB / {mailbox.quota_mb >= 1024
+                  ? `${(mailbox.quota_mb / 1024).toFixed(1)} GB`
+                  : `${mailbox.quota_mb} MB`}
+              </span>
+              <button 
+                onClick={() => setShowQuotaModal(true)}
+                style={{ 
+                  background: 'var(--cream-2)', 
+                  border: '1px solid var(--primary)', 
+                  color: 'var(--primary)', 
+                  fontSize: '0.7rem', 
+                  fontWeight: 800, 
+                  cursor: 'pointer',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  transition: 'all 0.2s',
+                  textTransform: 'uppercase',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'var(--primary)';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'var(--cream-2)';
+                  e.currentTarget.style.color = 'var(--primary)';
+                }}
+              >
+                Edit Quota
+              </button>
+            </div>
           </div>
         </td>
 
@@ -103,7 +171,7 @@ export function MailboxRow({ mailbox, onResetPassword }: MailboxRowProps) {
         <td style={{ padding: '0.75rem 1rem' }}>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
             <button
-              onClick={() => setShowModal(true)}
+              onClick={() => setShowPwModal(true)}
               style={{
                 background: 'white',
                 color: 'var(--primary)',
@@ -132,44 +200,21 @@ export function MailboxRow({ mailbox, onResetPassword }: MailboxRowProps) {
       </tr>
 
       {/* Reset password modal */}
-      {showModal && (
+      {showPwModal && (
         <tr>
           <td colSpan={4} style={{ padding: 0 }}>
             <div
-              style={{
-                position: 'fixed',
-                inset: 0,
-                background: 'rgba(26, 3, 1, 0.4)',
-                backdropFilter: 'blur(4px)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-              }}
-              onClick={closeModal}
+              style={modalOverlay}
+              onClick={closePwModal}
             >
               <div
-                style={{
-                  background: 'white',
-                  border: '1px solid var(--border)',
-                  borderRadius: '16px',
-                  padding: '2.5rem',
-                  width: '100%',
-                  maxWidth: '440px',
-                  display: 'flex',
-                  boxShadow: 'var(--shadow-xl)',
-                  flexDirection: 'column',
-                  gap: '1.25rem',
-                }}
+                style={modalContent}
                 onClick={(e) => e.stopPropagation()}
               >
                 <div>
-                  <h3 style={{ color: 'var(--ink)', margin: '0 0 0.5rem', fontSize: '1.25rem', fontWeight: 700, fontFamily: 'var(--font-heading)' }}>
-                    Security Reset
-                  </h3>
-                  <p style={{ color: 'var(--muted)', margin: 0, fontSize: '0.875rem', lineHeight: 1.5 }}>
-                    Enter a new access password for{' '}
-                    <strong style={{ color: 'var(--ink)' }}>{mailbox.email}</strong>.
+                  <h3 style={modalTitle}>Security Reset</h3>
+                  <p style={modalSubTitle}>
+                    Enter a new access password for <strong style={{ color: 'var(--ink)' }}>{mailbox.email}</strong>.
                   </p>
                 </div>
 
@@ -180,57 +225,62 @@ export function MailboxRow({ mailbox, onResetPassword }: MailboxRowProps) {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleReset()}
-                    style={{
-                      background: 'var(--bg-page)',
-                      border: `2px solid ${pwError ? 'var(--danger)' : 'var(--border)'}`,
-                      borderRadius: '8px',
-                      color: 'var(--ink)',
-                      padding: '0.75rem 1rem',
-                      fontSize: '1rem',
-                      outline: 'none',
-                      transition: 'border-color 0.2s',
-                    }}
+                    style={modalInput(!!pwError)}
                     autoFocus
                   />
-                  {pwError && (
-                    <span style={{ color: 'var(--danger)', fontSize: '0.75rem', fontWeight: 600 }}>{pwError}</span>
-                  )}
+                  {pwError && <span style={errorText}>{pwError}</span>}
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
-                  <button
-                    onClick={closeModal}
-                    style={{
-                      background: 'transparent',
-                      color: 'var(--muted)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '8px',
-                      padding: '0.625rem 1.25rem',
-                      fontSize: '0.875rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleReset}
-                    disabled={resetting}
-                    style={{
-                      background: 'var(--primary)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '8px',
-                      padding: '0.625rem 1.25rem',
-                      fontSize: '0.875rem',
-                      fontWeight: 700,
-                      cursor: resetting ? 'not-allowed' : 'pointer',
-                      opacity: resetting ? 0.7 : 1,
-                      boxShadow: 'var(--shadow-md)',
-                    }}
-                  >
+                <div style={modalActions}>
+                  <button onClick={closePwModal} style={btnGhost}>Cancel</button>
+                  <button onClick={handleReset} disabled={resetting} style={btnPrimary}>
                     {resetting ? 'Applying…' : 'Update Password'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+
+      {/* Edit Quota modal */}
+      {showQuotaModal && (
+        <tr>
+          <td colSpan={4} style={{ padding: 0 }}>
+            <div
+              style={modalOverlay}
+              onClick={closeQuotaModal}
+            >
+              <div
+                style={modalContent}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div>
+                  <h3 style={modalTitle}>Manage Storage</h3>
+                  <p style={modalSubTitle}>
+                    Update the storage quota for <strong style={{ color: 'var(--ink)' }}>{mailbox.email}</strong>.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="number"
+                      value={newQuota}
+                      onChange={(e) => setNewQuota(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleUpdateQuota()}
+                      style={{ ...modalInput(!!quotaError), paddingRight: '3.5rem' }}
+                      autoFocus
+                    />
+                    <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontWeight: 600 }}>MB</span>
+                  </div>
+                  {quotaError && <span style={errorText}>{quotaError}</span>}
+                </div>
+
+                <div style={modalActions}>
+                  <button onClick={closeQuotaModal} style={btnGhost}>Cancel</button>
+                  <button onClick={handleUpdateQuota} disabled={updatingQuota} style={btnPrimary}>
+                    {updatingQuota ? 'Saving…' : 'Update Quota'}
                   </button>
                 </div>
               </div>
@@ -241,3 +291,92 @@ export function MailboxRow({ mailbox, onResetPassword }: MailboxRowProps) {
     </>
   );
 }
+
+const modalOverlay: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(26, 3, 1, 0.4)',
+  backdropFilter: 'blur(4px)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  zIndex: 1000,
+};
+
+const modalContent: React.CSSProperties = {
+  background: 'white',
+  border: '1px solid var(--border)',
+  borderRadius: '16px',
+  padding: '2.5rem',
+  width: '100%',
+  maxWidth: '440px',
+  display: 'flex',
+  boxShadow: 'var(--shadow-xl)',
+  flexDirection: 'column',
+  gap: '1.25rem',
+};
+
+const modalTitle: React.CSSProperties = {
+  color: 'var(--ink)',
+  margin: '0 0 0.5rem',
+  fontSize: '1.25rem',
+  fontWeight: 700,
+  fontFamily: 'var(--font-heading)',
+};
+
+const modalSubTitle: React.CSSProperties = {
+  color: 'var(--muted)',
+  margin: 0,
+  fontSize: '0.875rem',
+  lineHeight: 1.5,
+};
+
+const modalInput = (hasError: boolean): React.CSSProperties => ({
+  background: 'var(--bg-page)',
+  border: `2px solid ${hasError ? 'var(--danger)' : 'var(--border)'}`,
+  borderRadius: '8px',
+  color: 'var(--ink)',
+  padding: '0.75rem 1rem',
+  fontSize: '1rem',
+  outline: 'none',
+  transition: 'border-color 0.2s',
+  width: '100%',
+  boxSizing: 'border-box' as const,
+});
+
+const errorText: React.CSSProperties = {
+  color: 'var(--danger)',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+};
+
+const modalActions: React.CSSProperties = {
+  display: 'flex',
+  gap: '0.75rem',
+  justifyContent: 'flex-end',
+  marginTop: '0.5rem',
+};
+
+const btnGhost: React.CSSProperties = {
+  background: 'transparent',
+  color: 'var(--muted)',
+  border: '1px solid var(--border)',
+  borderRadius: '8px',
+  padding: '0.625rem 1.25rem',
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  cursor: 'pointer',
+  transition: 'all 0.2s',
+};
+
+const btnPrimary: React.CSSProperties = {
+  background: 'var(--primary)',
+  color: '#ffffff',
+  border: 'none',
+  borderRadius: '8px',
+  padding: '0.625rem 1.25rem',
+  fontSize: '0.875rem',
+  fontWeight: 700,
+  cursor: 'pointer',
+  boxShadow: 'var(--shadow-md)',
+};

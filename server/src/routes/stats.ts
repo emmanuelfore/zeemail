@@ -27,4 +27,14 @@ router.get('/mailbox/:email', auth, requireRole('admin'), async (req: Request, r
   }
 });
 
+// GET /api/stats/mailcow-domains — admin only
+router.get('/mailcow-domains', auth, requireRole('admin'), async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const domains = await mailcowService.getDomains();
+    res.json(domains);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

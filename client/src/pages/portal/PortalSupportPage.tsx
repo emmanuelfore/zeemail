@@ -1,4 +1,5 @@
-import { NavLink } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../hooks/useAuth';
 import { useTickets } from '../../hooks/useTickets';
@@ -16,6 +17,7 @@ const cardStyle: React.CSSProperties = {
 };
 
 export function PortalSupportPage() {
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const [clientId, setClientId] = useState<string | undefined>(undefined);
   const [clientLoading, setClientLoading] = useState(true);
