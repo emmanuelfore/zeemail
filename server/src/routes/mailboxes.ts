@@ -54,14 +54,16 @@ router.post('/add', auth, async (req: Request, res: Response, next: NextFunction
     }
 
     if (authReq.profile.role !== 'admin' && client.profile_id !== authReq.profile.id) {
-      res.status(403).json({ error: 'Forbidden', code: 'INSUFFICIENT_ROLE' });
+      res.status(403).json({ 
+        error: 'You do not have permission to add mailboxes to this client account.', 
+        code: 'INSUFFICIENT_ROLE' 
+      });
       return;
     }
 
-    // 2. Verify status (clients may self-serve while active or pending payment)
-    const canSelfServeMailbox = client.status === 'active' || client.status === 'pending_payment';
-    if (!canSelfServeMailbox && authReq.profile.role !== 'admin') {
-      res.status(403).json({ error: 'Account is not ready for mailbox setup yet.', code: 'ACCOUNT_NOT_READY' });
+    // 2. Verify status (clients may self-serve while active, pending payment, or during provisioning)
+    if (client.status === 'suspended' && authReq.profile.role !== 'admin') {
+      res.status(403).json({ error: 'Your account is suspended.', code: 'ACCOUNT_SUSPENDED' });
       return;
     }
 
