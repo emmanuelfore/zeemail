@@ -25,6 +25,7 @@ import { PortalAccountPage } from './pages/portal/PortalAccountPage';
 import { PortalInvoicesPage } from './pages/portal/PortalInvoicesPage';
 import { PortalSupportPage } from './pages/portal/PortalSupportPage';
 import { PortalTicketDetailPage } from './pages/portal/PortalTicketDetailPage';
+import { PortalAliasesPage } from './pages/portal/PortalAliasesPage';
 import { AdminSupportPage } from './pages/admin/AdminSupportPage';
 import { AdminTicketDetailPage } from './pages/admin/AdminTicketDetailPage';
 import { MailcowDomainsPage } from './pages/admin/MailcowDomainsPage';
@@ -76,6 +77,7 @@ function App() {
           <Route index element={<PortalDashboardPage />} />
           <Route path="mailboxes" element={<PortalMailboxesPage />} />
           <Route path="account" element={<PortalAccountPage />} />
+          <Route path="aliases" element={<PortalAliasesPage />} />
           <Route path="invoices" element={<PortalInvoicesPage />} />
           <Route path="support" element={<PortalSupportPage />} />
           <Route path="support/:id" element={<PortalTicketDetailPage />} />

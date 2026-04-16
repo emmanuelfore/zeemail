@@ -53,6 +53,13 @@ export interface Mailbox {
   created_at: string;
 }
 
+export interface Alias {
+  id: string;
+  address: string;
+  goto: string;
+  active: number;
+}
+
 export interface Invoice {
   id: string;
   client_id: string;

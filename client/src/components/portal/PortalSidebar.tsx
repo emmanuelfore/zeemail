@@ -8,7 +8,8 @@ import {
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
-  LifeBuoy
+  LifeBuoy,
+  Forward
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -21,6 +22,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', to: '/portal', icon: LayoutDashboard },
   { label: 'Mailboxes', to: '/portal/mailboxes', icon: Mail },
+  { label: 'Forwarding', to: '/portal/aliases', icon: Forward },
   { label: 'Invoices', to: '/portal/invoices', icon: ReceiptText },
   { label: 'Support', to: '/portal/support', icon: LifeBuoy },
   { label: 'Account', to: '/portal/account', icon: Settings },

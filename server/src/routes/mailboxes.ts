@@ -157,9 +157,25 @@ router.put('/:email', auth, requireRole('admin'), async (req: Request, res: Resp
   }
 });
 
-// DELETE /api/mailboxes/:email — admin only
-router.delete('/:email', auth, requireRole('admin'), async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+// DELETE /api/mailboxes/:email — admin or owner
+router.delete('/:email', auth, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const email = req.params['email'] as string;
+  const authReq = req as AuthenticatedRequest;
+
+  // Permission check
+  if (authReq.profile.role !== 'admin') {
+    const { data: mailbox } = await supabaseAdmin
+      .from('mailboxes')
+      .select('email, clients!inner(profile_id)')
+      .eq('email', email)
+      .single();
+
+    const clientProfileId = (mailbox as any)?.clients?.profile_id;
+    if (!mailbox || clientProfileId !== authReq.profile.id) {
+      res.status(403).json({ error: 'Forbidden', code: 'INSUFFICIENT_ROLE' });
+      return;
+    }
+  }
 
   try {
     await mailcowService.deleteMailbox(email);

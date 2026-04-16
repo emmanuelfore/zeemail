@@ -325,6 +325,19 @@ export function PortalMailboxesPage() {
     }
   }
 
+  async function handleDeleteMailbox(email: string) {
+    try {
+      await apiRequest('DELETE', `/api/mailboxes/${encodeURIComponent(email)}`);
+      toast('Mailbox deleted successfully', 'success');
+      if (client?.id) {
+        await fetchMailboxes(client.id);
+      }
+    } catch (err: unknown) {
+      toast((err as ApiError).error ?? 'Failed to delete mailbox', 'error');
+      throw err;
+    }
+  }
+
   const isPendingPayment = client?.status === 'pending_payment';
   const canAdd = client?.status && client.status !== 'suspended';
   const mailboxLimit = client?.mailbox_limit ?? 0;
@@ -458,6 +471,7 @@ export function PortalMailboxesPage() {
                     plan={client.plan}
                     onResetPassword={handleResetPassword}
                     onUpdateQuota={handleUpdateQuota}
+                    onDelete={handleDeleteMailbox}
                   />
                 ))}
               </tbody>

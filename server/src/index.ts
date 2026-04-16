@@ -12,6 +12,7 @@ import morgan from 'morgan';
 import { errorHandler } from './middleware/errorHandler';
 import domainsRouter from './routes/domains';
 import mailboxesRouter from './routes/mailboxes';
+import aliasesRouter from './routes/aliases';
 import leadsRouter from './routes/leads';
 import statsRouter from './routes/stats';
 import crmRouter from './routes/crm';
@@ -63,6 +64,7 @@ app.get('/health', (_req, res) => {
 // Routes
 app.use('/api/domains', domainsRouter);
 app.use('/api/mailboxes', mailboxesRouter);
+app.use('/api/aliases', aliasesRouter);
 app.use('/api/leads', leadsRouter);
 app.use('/api/stats', statsRouter);
 app.use('/api/crm', crmRouter);
@@ -81,4 +83,3 @@ app.listen(PORT, () => {
 });
 
 export default app;
-

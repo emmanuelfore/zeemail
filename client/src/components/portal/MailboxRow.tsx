@@ -7,9 +7,10 @@ interface MailboxRowProps {
   plan: string;
   onResetPassword: (email: string, newPassword: string) => Promise<void>;
   onUpdateQuota: (email: string, newQuota: number) => Promise<void>;
+  onDelete: (email: string) => Promise<void>;
 }
 
-export function MailboxRow({ mailbox, plan, onResetPassword, onUpdateQuota }: MailboxRowProps) {
+export function MailboxRow({ mailbox, plan, onResetPassword, onUpdateQuota, onDelete }: MailboxRowProps) {
   const [showPwModal, setShowPwModal] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [resetting, setResetting] = useState(false);
@@ -19,6 +20,10 @@ export function MailboxRow({ mailbox, plan, onResetPassword, onUpdateQuota }: Ma
   const [newQuota, setNewQuota] = useState(mailbox.quota_mb.toString());
   const [updatingQuota, setUpdatingQuota] = useState(false);
   const [quotaError, setQuotaError] = useState('');
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const planMax = {
     'starter': 2048,
@@ -68,6 +73,19 @@ export function MailboxRow({ mailbox, plan, onResetPassword, onUpdateQuota }: Ma
     }
   }
 
+  async function handleDelete() {
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await onDelete(mailbox.email);
+      setShowDeleteModal(false);
+    } catch (err: any) {
+      setDeleteError(err.error || 'Failed to delete mailbox');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   function closePwModal() {
     setShowPwModal(false);
     setNewPassword('');
@@ -78,6 +96,11 @@ export function MailboxRow({ mailbox, plan, onResetPassword, onUpdateQuota }: Ma
     setShowQuotaModal(false);
     setNewQuota(mailbox.quota_mb.toString());
     setQuotaError('');
+  }
+
+  function closeDeleteModal() {
+    setShowDeleteModal(false);
+    setDeleteError('');
   }
 
   return (
@@ -195,9 +218,71 @@ export function MailboxRow({ mailbox, plan, onResetPassword, onUpdateQuota }: Ma
             >
               Reset password
             </button>
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              style={{
+                background: 'white',
+                color: 'var(--danger)',
+                border: '1px solid var(--danger)',
+                borderRadius: '6px',
+                padding: '0.4rem 0.75rem',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--danger)';
+                e.currentTarget.style.color = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'white';
+                e.currentTarget.style.color = 'var(--danger)';
+              }}
+            >
+              Delete
+            </button>
           </div>
         </td>
       </tr>
+
+      {/* Delete confirmation modal */}
+      {showDeleteModal && (
+        <tr>
+          <td colSpan={4} style={{ padding: 0 }}>
+            <div
+              style={modalOverlay}
+              onClick={closeDeleteModal}
+            >
+              <div
+                style={modalContent}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div>
+                  <h3 style={{ ...modalTitle, color: 'var(--danger)' }}>Delete Mailbox?</h3>
+                  <p style={modalSubTitle}>
+                    This action is permanent. All emails and data for <strong style={{ color: 'var(--ink)' }}>{mailbox.email}</strong> will be erased from our servers immediately.
+                  </p>
+                </div>
+
+                {deleteError && <span style={errorText}>{deleteError}</span>}
+
+                <div style={modalActions}>
+                  <button onClick={closeDeleteModal} style={btnGhost}>Cancel</button>
+                  <button 
+                    onClick={handleDelete} 
+                    disabled={deleting} 
+                    style={{ ...btnPrimary, background: 'var(--danger)' }}
+                  >
+                    {deleting ? 'Deleting…' : 'Yes, Delete Mailbox'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
 
       {/* Reset password modal */}
       {showPwModal && (

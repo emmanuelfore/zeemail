@@ -43,6 +43,20 @@ export interface MailcowMailboxStats {
   [key: string]: unknown;
 }
 
+export interface AddAliasParams {
+  address: string;
+  goto: string;
+  active?: number;
+}
+
+export interface MailcowAlias {
+  id: string;
+  address: string;
+  goto: string;
+  active: number;
+  [key: string]: unknown;
+}
+
 export interface MailcowService {
   addDomain(domain: string): Promise<MailcowResponse>;
   deleteDomain(domain: string): Promise<MailcowResponse>;
@@ -56,6 +70,11 @@ export interface MailcowService {
   getDkim(domain: string): Promise<{ dkim_txt: string; pubkey: string } | null>;
   getDomain(domain: string): Promise<Record<string, unknown> | null>;
   getDomains(): Promise<Record<string, unknown>[]>;
+  // Aliases
+  addAlias(params: AddAliasParams): Promise<MailcowResponse>;
+  getAliases(domain: string): Promise<MailcowAlias[]>;
+  updateAlias(id: string, attrs: Partial<AddAliasParams>): Promise<MailcowResponse>;
+  deleteAlias(id: string): Promise<MailcowResponse>;
 }
 
 function isNetworkError(err: unknown): boolean {
@@ -63,7 +82,6 @@ function isNetworkError(err: unknown): boolean {
     const cause = (err as NodeJS.ErrnoException & { cause?: { code?: string } }).cause;
     if (cause?.code === 'ECONNREFUSED' || cause?.code === 'ETIMEDOUT') return true;
     if (err.message.includes('ECONNREFUSED') || err.message.includes('ETIMEDOUT')) return true;
-    // Node fetch wraps network errors
     if (err.message.includes('fetch failed')) return true;
   }
   return false;
@@ -99,9 +117,6 @@ async function mailcowFetch(
 
   const data = await response.json() as any;
 
-  // Handle Mailcow error responses
-  // They often come as an array of objects: [{ type: 'error', msg: '...' }]
-  // or a single object: { type: 'error', msg: '...' }
   const normalized = Array.isArray(data) ? data[0] : data;
   if (normalized?.type === 'error' && !normalized.msg?.includes('already exists')) {
     throw new Error(`Mailcow error: ${normalized.msg}`);
@@ -204,7 +219,6 @@ export const mailcowService: MailcowService = {
       { method: 'GET' }
     )) as any;
     if (data && data.dkim_txt) {
-      // Sometimes it returns the exact string like v=DKIM1;k=rsa;p=...
       return { dkim_txt: data.dkim_txt, pubkey: data.pubkey };
     }
     return null;
@@ -216,7 +230,6 @@ export const mailcowService: MailcowService = {
       const data = await mailcowFetch(`${host}/api/v1/get/domain/${domain}`, apiKey, {
         method: 'GET',
       });
-      // Mailcow returns an object for the domain if it exists, or empty array/null if not
       if (data && (Array.isArray(data) ? data.length > 0 : data.domain === domain)) {
         return Array.isArray(data) ? data[0] : data;
       }
@@ -233,15 +246,47 @@ export const mailcowService: MailcowService = {
     });
     const domains = Array.isArray(data) ? data : [];
     
-    // Normalize fields for frontend
     return domains.map(d => ({
       domain: d.domain,
       description: d.description,
-      max_quota: Number(d.quota), // Mailcow returns max quota in MiB
-      quota_used: Math.round(Number(d.quota_used) / 1024 / 1024), // Mailcow returns used in Bytes, convert to MiB
+      max_quota: Number(d.quota),
+      quota_used: Math.round(Number(d.quota_used) / 1024 / 1024),
       max_mailboxes: Number(d.max_mailboxes),
       mailboxes_count: Number(d.mboxes_in_domain || 0),
       active: d.active === "1" || d.active === 1 ? 1 : 0
     }));
+  },
+
+  async addAlias(params: AddAliasParams): Promise<MailcowResponse> {
+    const { host, apiKey } = getEnv();
+    return mailcowFetch(`${host}/api/v1/add/alias`, apiKey, {
+      method: 'POST',
+      body: JSON.stringify({ ...params, active: params.active ?? 1 }),
+    });
+  },
+
+  async getAliases(domain: string): Promise<MailcowAlias[]> {
+    const { host, apiKey } = getEnv();
+    return (await mailcowFetch(
+      `${host}/api/v1/get/alias/all/${domain}`,
+      apiKey,
+      { method: 'GET' }
+    )) as unknown as MailcowAlias[];
+  },
+
+  async updateAlias(id: string, attrs: Partial<AddAliasParams>): Promise<MailcowResponse> {
+    const { host, apiKey } = getEnv();
+    return mailcowFetch(`${host}/api/v1/edit/alias`, apiKey, {
+      method: 'POST',
+      body: JSON.stringify({ items: [id], attr: attrs }),
+    });
+  },
+
+  async deleteAlias(id: string): Promise<MailcowResponse> {
+    const { host, apiKey } = getEnv();
+    return mailcowFetch(`${host}/api/v1/delete/alias`, apiKey, {
+      method: 'POST',
+      body: JSON.stringify([id]),
+    });
   },
 };
