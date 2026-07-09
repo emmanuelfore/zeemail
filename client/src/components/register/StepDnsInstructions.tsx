@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { apiRequest } from '../../lib/api';
 
 const MAILCOW_HOST = import.meta.env.VITE_MAILCOW_HOST ?? 'mail.zeemail.co.zw';
+const SES_SPF_INCLUDE = import.meta.env.VITE_SES_SPF_INCLUDE ?? 'amazonses.com';
 const MX_RECORD = `10 ${MAILCOW_HOST}`;
-const SPF_RECORD = `v=spf1 mx a:${MAILCOW_HOST} ~all`;
+const SPF_RECORD = `v=spf1 mx a:${MAILCOW_HOST} include:${SES_SPF_INCLUDE} ~all`;
 
 type DnsProvider = 'cloudflare' | 'other' | 'third-party';
 

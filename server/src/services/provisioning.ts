@@ -15,6 +15,7 @@ import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { CloudflareService } from './cloudflare';
 import { mailcowService } from './mailcow';
 import { ResendService, type ResendClient, type MailboxCredential } from './resend';
+import { SesRelayService } from './sesRelay';
 import type { Plan } from '../types/index';
 
 // ---------------------------------------------------------------------------
@@ -110,6 +111,15 @@ async function setProvisioningError(clientId: string, step: string, err: unknown
     console.error(
       `[ProvisioningEngine] clientId=${clientId} failed to set provisioning_error: ${updateErr}`
     );
+  }
+}
+
+async function provisionSesRelay(clientId: string, domain: string): Promise<void> {
+  try {
+    await SesRelayService.provisionTenantDomain(clientId);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.log(JSON.stringify({ level: 'error', event: 'ses_relay_provisioning_failed', clientId, domain, error: message }));
   }
 }
 
@@ -254,6 +264,7 @@ async function runPathA(clientId: string): Promise<void> {
   // Step 2: Add domain to Mailcow (Requirements 11.4)
   try {
     await mailcowService.addDomain(client.domain);
+    await provisionSesRelay(clientId, client.domain);
   } catch (err) {
     await setProvisioningError(clientId, 'mailcow_add_domain', err);
     throw err;
@@ -353,6 +364,7 @@ async function runPathB(clientId: string): Promise<void> {
   // Step 1: Add domain to Mailcow (Requirements 12.1)
   try {
     await mailcowService.addDomain(client.domain);
+    await provisionSesRelay(clientId, client.domain);
   } catch (err) {
     await setProvisioningError(clientId, 'mailcow_add_domain', err);
     throw err;

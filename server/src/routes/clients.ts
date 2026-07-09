@@ -14,6 +14,7 @@ import { ProvisioningEngine } from '../services/provisioning';
 import { CloudflareService } from '../services/cloudflare';
 import { mailcowService } from '../services/mailcow';
 import { runSingleHealthCheck } from '../jobs/dnsHealthCheck';
+import { SesRelayService } from '../services/sesRelay';
 
 const router = Router();
 
@@ -188,6 +189,44 @@ router.get(
         return;
       }
       res.json(dkimResult);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// POST /api/clients/:id/relay/provision
+// Admin-only: provision or retry Amazon SES outbound relay for an existing tenant domain.
+// ---------------------------------------------------------------------------
+
+router.post(
+  '/:id/relay/provision',
+  auth,
+  requireRole('admin'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await SesRelayService.provisionTenantDomain(req.params.id);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// GET /api/clients/:id/relay/status
+// Admin-only: single SES verification status check without polling.
+// ---------------------------------------------------------------------------
+
+router.get(
+  '/:id/relay/status',
+  auth,
+  requireRole('admin'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await SesRelayService.checkRelayVerification(req.params.id);
+      res.json(result);
     } catch (err) {
       next(err);
     }

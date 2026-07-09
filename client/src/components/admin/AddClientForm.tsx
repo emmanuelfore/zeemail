@@ -184,7 +184,7 @@ export function AddClientForm({ onSuccess, initialValues }: AddClientFormProps) 
 
       {field('contact_name', 'Contact name', 'text', 'Jane Doe')}
       {field('contact_email', 'Contact email', 'email', 'jane@acme.co.zw')}
-      {field('contact_phone', 'Contact phone', 'tel', '+263771234567')}
+      {field('contact_phone', 'Contact phone', 'tel', '+263776344339')}
 
       {/* Notes (optional) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>

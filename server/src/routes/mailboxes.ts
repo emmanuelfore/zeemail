@@ -3,6 +3,7 @@ import { auth, AuthenticatedRequest } from '../middleware/auth';
 import { requireRole } from '../middleware/requireRole';
 import { mailcowService, AddMailboxParams } from '../services/mailcow';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
+import { SesRelayService } from '../services/sesRelay';
 
 const router = Router();
 
@@ -15,6 +16,22 @@ router.post('/add-domain', auth, requireRole('admin'), async (req: Request, res:
   }
   try {
     const result = await mailcowService.addDomain(domain);
+    const { data: client } = await supabaseAdmin
+      .from('clients')
+      .select('id')
+      .eq('domain', domain)
+      .single();
+    if (client?.id) {
+      await SesRelayService.provisionTenantDomain(client.id).catch((err) => {
+        console.log(JSON.stringify({
+          level: 'error',
+          event: 'ses_relay_provisioning_failed',
+          clientId: client.id,
+          domain,
+          error: err instanceof Error ? err.message : String(err),
+        }));
+      });
+    }
     console.log('[mailboxes/add-domain] Mailcow response:', JSON.stringify(result));
     res.json({ success: true, result });
   } catch (err) {
@@ -97,6 +114,15 @@ router.post('/add', auth, async (req: Request, res: Response, next: NextFunction
 
     // Ensure domain exists in Mailcow before adding mailbox
     await mailcowService.addDomain(domain);
+    await SesRelayService.provisionTenantDomain(client_id).catch((err) => {
+      console.log(JSON.stringify({
+        level: 'error',
+        event: 'ses_relay_provisioning_failed',
+        clientId: client_id,
+        domain,
+        error: err instanceof Error ? err.message : String(err),
+      }));
+    });
 
     const mailcowResult = await mailcowService.addMailbox(params);
     console.log('[mailboxes/add] Mailcow response:', JSON.stringify(mailcowResult));

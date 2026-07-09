@@ -13,6 +13,8 @@ import type { Client, Mailbox, Invoice, SupportTicket, Plan, TicketStatus } from
 const PLAN_MRR: Record<Plan, number> = { starter: 5, business: 12, pro: 25 };
 
 const MAILCOW_HOST = import.meta.env.VITE_MAILCOW_HOST ?? 'mail.zeemail.co.zw';
+const SES_SPF_INCLUDE = import.meta.env.VITE_SES_SPF_INCLUDE ?? 'amazonses.com';
+const SPF_RECORD = `v=spf1 mx a:${MAILCOW_HOST} include:${SES_SPF_INCLUDE} ~all`;
 
 const cardStyle: React.CSSProperties = {
   background: 'var(--surface-container-low)',
@@ -364,7 +366,7 @@ function OverviewTab({
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr', gap: '0.5rem', alignItems: 'center' }}>
                       <span style={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>SPF:</span>
-                      <code style={{ background: 'rgba(0,0,0,0.2)', padding: '0.25rem 0.5rem', borderRadius: '4px', color: 'var(--primary)', wordBreak: 'break-all' }}>v=spf1 mx a:{MAILCOW_HOST} ~all</code>
+                      <code style={{ background: 'rgba(0,0,0,0.2)', padding: '0.25rem 0.5rem', borderRadius: '4px', color: 'var(--primary)', wordBreak: 'break-all' }}>{SPF_RECORD}</code>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr', gap: '0.5rem', alignItems: 'center' }}>
                       <span style={{ fontWeight: 600, color: 'var(--on-surface-variant)' }}>DMARC:</span>
@@ -402,7 +404,7 @@ function OverviewTab({
                     </button>
                   )}
                   <button style={btnGhost} onClick={() => {
-                    const txt = `MX: ${MAILCOW_HOST} (Priority 10)\nSPF: v=spf1 mx a:${MAILCOW_HOST} ~all\nDMARC: v=DMARC1; p=none; rua=mailto:postmaster@${client.domain}` + (dkimKey ? `\nDKIM: ${dkimKey}` : '');
+                    const txt = `MX: ${MAILCOW_HOST} (Priority 10)\nSPF: ${SPF_RECORD}\nDMARC: v=DMARC1; p=none; rua=mailto:postmaster@${client.domain}` + (dkimKey ? `\nDKIM: ${dkimKey}` : '');
                     navigator.clipboard.writeText(txt);
                     toast('Records copied to clipboard!', 'success');
                   }}>

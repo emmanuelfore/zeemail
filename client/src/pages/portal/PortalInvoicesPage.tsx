@@ -6,7 +6,7 @@ import { SkeletonLoader } from '../../components/shared/SkeletonLoader';
 import { EmptyState } from '../../components/shared/EmptyState';
 import type { Client, Invoice } from '../../types/index';
 
-const SUPPORT_NUMBER = '263771234567';
+const SUPPORT_NUMBER = '263776344339';
 
 const cardStyle: React.CSSProperties = {
   background: 'var(--bg-card, var(--surface-container-low))',

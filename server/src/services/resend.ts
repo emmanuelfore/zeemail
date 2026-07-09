@@ -8,6 +8,7 @@
  * Requirements: 11.7, 12.4, 16.3
  */
 import { Resend } from 'resend';
+import { buildSesSpfRecord } from '../lib/sesRelay';
 
 export interface MailboxCredential {
   localPart: string;
@@ -89,7 +90,7 @@ function buildWelcomeEmailHtml(client: ResendClient, mailboxes: MailboxCredentia
 
 function buildDnsInstructionsHtml(client: ResendClient): string {
   const mailcowHost = getMailcowHost();
-  const spfValue = `v=spf1 mx a:${mailcowHost} ~all`;
+  const spfValue = buildSesSpfRecord(mailcowHost.replace(/^https?:\/\//, ''));
 
   return `
 <!DOCTYPE html>
@@ -113,6 +114,7 @@ function buildDnsInstructionsHtml(client: ResendClient): string {
   <div style="background:#fff;padding:20px;border:1px solid #e2e8f0;margin:24px 0;border-radius:8px;">
     <h2 style="color:#4a5568;font-size:18px;margin-top:0;">Option 2: Manual Setup (Advanced)</h2>
     <p>If you prefer to manage your own DNS, please add the following records to your existing DNS provider.</p>
+    <p style="font-size:14px;color:#4a5568;">Outbound email is relayed through Amazon SES. The SPF record below authorizes both ZeeMail's mail server and Amazon SES.</p>
 
     <h3 style="color:#2d3748;font-size:14px;margin-top:16px;">MX Record</h3>
     <table style="border-collapse:collapse;width:100%;margin:8px 0;font-size:14px;">

@@ -34,6 +34,8 @@ function renewalLabel(client: Client | null): string {
 }
 
 const MAILCOW_HOST = import.meta.env.VITE_MAILCOW_HOST ?? 'mail.zeemail.co.zw';
+const SES_SPF_INCLUDE = import.meta.env.VITE_SES_SPF_INCLUDE ?? 'amazonses.com';
+const SPF_RECORD = `v=spf1 mx a:${MAILCOW_HOST} include:${SES_SPF_INCLUDE} ~all`;
 
 const codeStyle: React.CSSProperties = {
   fontFamily: 'monospace',
@@ -299,7 +301,7 @@ export function PortalDashboardPage() {
                   <div>
                     <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)' }}>SPF Record (TXT)</span>
                     <code style={{ ...codeStyle, background: 'var(--cream)', color: 'var(--primary)', border: '1px solid var(--border)', display: 'block', marginTop: '0.25rem', wordBreak: 'break-all' }}>
-                      v=spf1 mx a:{MAILCOW_HOST} ~all
+                      {SPF_RECORD}
                     </code>
                   </div>
                 </div>
@@ -397,7 +399,7 @@ export function PortalDashboardPage() {
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr', gap: '0.5rem', alignItems: 'center' }}>
                       <span style={{ fontWeight: 600, color: 'var(--muted)' }}>SPF:</span>
-                      <code style={{ background: 'rgba(0,0,0,0.05)', padding: '0.25rem 0.5rem', borderRadius: '6px', color: 'var(--primary)', wordBreak: 'break-all' }}>v=spf1 mx a:{MAILCOW_HOST} ~all</code>
+                      <code style={{ background: 'rgba(0,0,0,0.05)', padding: '0.25rem 0.5rem', borderRadius: '6px', color: 'var(--primary)', wordBreak: 'break-all' }}>{SPF_RECORD}</code>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr', gap: '0.5rem', alignItems: 'center' }}>
                       <span style={{ fontWeight: 600, color: 'var(--muted)' }}>DMARC:</span>
@@ -426,7 +428,7 @@ export function PortalDashboardPage() {
 
                 <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <button style={btnGhost} onClick={() => {
-                    const txt = `MX: ${MAILCOW_HOST} (Priority 10)\nSPF: v=spf1 mx a:${MAILCOW_HOST} ~all\nDMARC: v=DMARC1; p=none; rua=mailto:postmaster@${client.domain}` + (dkimKey ? `\nDKIM: ${dkimKey}` : '');
+                    const txt = `MX: ${MAILCOW_HOST} (Priority 10)\nSPF: ${SPF_RECORD}\nDMARC: v=DMARC1; p=none; rua=mailto:postmaster@${client.domain}` + (dkimKey ? `\nDKIM: ${dkimKey}` : '');
                     navigator.clipboard.writeText(txt);
                     toast('Records copied to clipboard!', 'success');
                   }}>
