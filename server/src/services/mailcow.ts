@@ -57,6 +57,22 @@ export interface MailcowAlias {
   [key: string]: unknown;
 }
 
+export interface AddRelayhostParams {
+  hostname: string;
+  username?: string;
+  password?: string;
+  active?: number;
+}
+
+export interface MailcowRelayhost {
+  id: number;
+  hostname: string;
+  username?: string;
+  password?: string;
+  active: number;
+  [key: string]: unknown;
+}
+
 export interface MailcowService {
   addDomain(domain: string): Promise<MailcowResponse>;
   deleteDomain(domain: string): Promise<MailcowResponse>;
@@ -75,6 +91,10 @@ export interface MailcowService {
   getAliases(domain: string): Promise<MailcowAlias[]>;
   updateAlias(id: string, attrs: Partial<AddAliasParams>): Promise<MailcowResponse>;
   deleteAlias(id: string): Promise<MailcowResponse>;
+  // Relayhosts
+  getRelayhosts(): Promise<MailcowRelayhost[]>;
+  addRelayhost(params: AddRelayhostParams): Promise<MailcowResponse>;
+  setDomainRelayhost(domain: string, relayhostId: number): Promise<MailcowResponse>;
 }
 
 function isNetworkError(err: unknown): boolean {
@@ -287,6 +307,30 @@ export const mailcowService: MailcowService = {
     return mailcowFetch(`${host}/api/v1/delete/alias`, apiKey, {
       method: 'POST',
       body: JSON.stringify([id]),
+    });
+  },
+
+  async getRelayhosts(): Promise<MailcowRelayhost[]> {
+    const { host, apiKey } = getEnv();
+    const data = await mailcowFetch(`${host}/api/v1/get/relayhost/all`, apiKey, {
+      method: 'GET',
+    });
+    return Array.isArray(data) ? data : [];
+  },
+
+  async addRelayhost(params: AddRelayhostParams): Promise<MailcowResponse> {
+    const { host, apiKey } = getEnv();
+    return mailcowFetch(`${host}/api/v1/add/relayhost`, apiKey, {
+      method: 'POST',
+      body: JSON.stringify({ ...params, active: params.active ?? 1 }),
+    });
+  },
+
+  async setDomainRelayhost(domain: string, relayhostId: number): Promise<MailcowResponse> {
+    const { host, apiKey } = getEnv();
+    return mailcowFetch(`${host}/api/v1/edit/domain`, apiKey, {
+      method: 'POST',
+      body: JSON.stringify({ items: [domain], attr: { relayhost: relayhostId } }),
     });
   },
 };

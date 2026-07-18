@@ -1,10 +1,7 @@
-import { execFile } from 'child_process';
-import { promisify } from 'util';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { CloudflareService } from './cloudflare';
+import { mailcowService } from './mailcow';
 import { buildSendcorexRelayLine, buildSendcorexSpfRecord, getSendcorexRelayConfig } from '../lib/sendcorexRelay';
-
-const execFileAsync = promisify(execFile);
 
 type RelayStatus = 'pending' | 'verified' | 'failed';
 
@@ -34,10 +31,6 @@ interface ClientRelayRecord {
 
 function logRelay(level: 'info' | 'warn' | 'error', event: string, data: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ level, event, service: 'sendcorexRelay', ...data }));
-}
-
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 async function fetchClient(clientId: string): Promise<ClientRelayRecord> {
@@ -101,46 +94,7 @@ function buildSpfRecord(domain: string): ManualDnsRecord {
   };
 }
 
-async function upsertPostfixRelayLine(domain: string, relayLine: string) {
-  if (!/^[a-z0-9.-]+$/i.test(domain)) throw new Error(`Invalid domain for relay map: ${domain}`);
-  const { postfixContainerName, relayMapPath } = getSendcorexRelayConfig();
-  const quotedPath = shellQuote(relayMapPath);
-  const quotedTmp = shellQuote(`${relayMapPath}.tmp`);
-  const quotedPattern = shellQuote(`^@${domain}[[:space:]]`);
-  const quotedLine = shellQuote(relayLine);
-  const script = [
-    `touch ${quotedPath}`,
-    `grep -v ${quotedPattern} ${quotedPath} > ${quotedTmp}`,
-    `printf '%s\\n' ${quotedLine} >> ${quotedTmp}`,
-    `mv ${quotedTmp} ${quotedPath}`,
-    `postmap ${quotedPath}`,
-    'postfix reload',
-  ].join(' && ');
 
-  await execFileAsync('docker', ['exec', postfixContainerName, 'sh', '-lc', script]);
-}
-
-async function configurePostfixSaslCredentials() {
-  const { apiKey, postfixContainerName } = getSendcorexRelayConfig();
-  const saslPath = '/etc/postfix/sasl_passwd';
-  const quotedPath = shellQuote(saslPath);
-  const quotedTmp = shellQuote(`${saslPath}.tmp`);
-  const { smtpHost, smtpPort } = getSendcorexRelayConfig();
-  const quotedPattern = shellQuote(`^\\[${smtpHost}\\]:${smtpPort}`);
-  const quotedLine = shellQuote(`[${smtpHost}]:${smtpPort} ${apiKey}:${apiKey}`);
-  
-  const script = [
-    `touch ${quotedPath}`,
-    `grep -v ${quotedPattern} ${quotedPath} > ${quotedTmp} || true`,
-    `printf '%s\\n' ${quotedLine} >> ${quotedTmp}`,
-    `mv ${quotedTmp} ${quotedPath}`,
-    `chmod 600 ${quotedPath}`,
-    `postmap ${quotedPath}`,
-    'postfix reload',
-  ].join(' && ');
-
-  await execFileAsync('docker', ['exec', postfixContainerName, 'sh', '-lc', script]);
-}
 
 export async function checkRelayVerification(clientId: string): Promise<RelayProvisioningResult> {
   const client = await fetchClient(clientId);
@@ -185,12 +139,28 @@ export async function provisionTenantDomain(clientId: string): Promise<RelayProv
       await applyCloudflareDns(zoneId, records);
     }
 
-    try {
-      await configurePostfixSaslCredentials();
-      await upsertPostfixRelayLine(client.domain, relayLine);
-    } catch (dockerErr) {
-      logRelay('warn', 'postfix_docker_config_failed', { error: dockerErr instanceof Error ? dockerErr.message : String(dockerErr) });
+    const config = getSendcorexRelayConfig();
+    const relayhostName = `${config.smtpHost}:${config.smtpPort}`;
+
+    let relayhosts = await mailcowService.getRelayhosts();
+    let relay = relayhosts.find(r => r.hostname === relayhostName);
+
+    if (!relay) {
+      await mailcowService.addRelayhost({
+        hostname: relayhostName,
+        username: config.apiKey,
+        password: config.apiKey,
+        active: 1
+      });
+      relayhosts = await mailcowService.getRelayhosts();
+      relay = relayhosts.find(r => r.hostname === relayhostName);
     }
+
+    if (!relay) {
+      throw new Error(`Failed to create or find relayhost ${relayhostName} in Mailcow`);
+    }
+
+    await mailcowService.setDomainRelayhost(client.domain, relay.id);
 
     await updateClientRelay(client.id, {
       relay_verification_status: 'verified',
