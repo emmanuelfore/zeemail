@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { auth, AuthenticatedRequest } from '../middleware/auth';
-import { mailcowService, AddAliasParams } from '../services/mailcow';
+import { mailcowService } from '../services/mailcow';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 
 const router = Router();
@@ -28,7 +28,7 @@ router.get('/:domain', auth, async (req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const aliases = await mailcowService.getAliases(domain);
+    const aliases = await mailcowService.getAliases(domain as string);
     res.json(aliases);
   } catch (err) {
     next(err);
@@ -104,7 +104,7 @@ router.put('/:id', auth, async (req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    const result = await mailcowService.updateAlias(id, attrs);
+    const result = await mailcowService.updateAlias(id as string, attrs);
     res.json(result);
   } catch (err) {
     next(err);
@@ -136,7 +136,7 @@ router.delete('/:id', auth, async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    const result = await mailcowService.deleteAlias(id);
+    const result = await mailcowService.deleteAlias(id as string);
     res.json(result);
   } catch (err) {
     next(err);
