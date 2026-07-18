@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore';
 
 import { Logo } from '../../components/shared/Logo';
 
-const API = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000';
+const API = import.meta.env.VITE_API_BASE_URL || window.location.origin;
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
