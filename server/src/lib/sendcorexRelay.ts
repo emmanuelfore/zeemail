@@ -14,8 +14,8 @@ export function getSendcorexRelayConfig(): SendcorexRelayConfig {
   }
 
   return {
-    smtpHost: process.env.SENDCOREX_SMTP_HOST || 'smtp.sendcorex.com',
-    smtpPort: parseInt(process.env.SENDCOREX_SMTP_PORT || '587', 10),
+    smtpHost: process.env.SENDCOREX_SMTP_HOST || 'smtp.emailsbit.com',
+    smtpPort: parseInt(process.env.SENDCOREX_SMTP_PORT || '588', 10),
     apiKey,
     postfixContainerName: process.env.MAILCOW_CONTAINER_NAME || 'postfix-mailcow',
     relayMapPath: process.env.RELAY_MAP_PATH || '/opt/postfix/conf/sender_dependent_relayhost_maps',
