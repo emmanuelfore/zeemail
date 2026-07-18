@@ -16,14 +16,7 @@ const card: React.CSSProperties = {
   padding: '1.5rem',
 };
 
-const label: React.CSSProperties = {
-  color: 'var(--text-muted)',
-  fontSize: '0.75rem',
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  margin: '0 0 0.25rem',
-};
+
 
 function AliasRow({ alias, onDelete }: { alias: Alias; onDelete: (id: string, address: string) => Promise<void> }) {
   const [deleting, setDeleting] = useState(false);
