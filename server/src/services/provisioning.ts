@@ -15,7 +15,7 @@ import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { CloudflareService } from './cloudflare';
 import { mailcowService } from './mailcow';
 import { ResendService, type ResendClient, type MailboxCredential } from './resend';
-import { SesRelayService } from './sesRelay';
+import { SendcorexRelayService } from './sendcorexRelay';
 import type { Plan } from '../types/index';
 
 // ---------------------------------------------------------------------------
@@ -114,12 +114,12 @@ async function setProvisioningError(clientId: string, step: string, err: unknown
   }
 }
 
-async function provisionSesRelay(clientId: string, domain: string): Promise<void> {
+async function provisionSendcorexRelay(clientId: string, domain: string): Promise<void> {
   try {
-    await SesRelayService.provisionTenantDomain(clientId);
+    await SendcorexRelayService.provisionTenantDomain(clientId);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.log(JSON.stringify({ level: 'error', event: 'ses_relay_provisioning_failed', clientId, domain, error: message }));
+    console.log(JSON.stringify({ level: 'error', event: 'sendcorex_relay_provisioning_failed', clientId, domain, error: message }));
   }
 }
 
@@ -149,12 +149,12 @@ async function createMailboxes(
     });
 
     // Store in Supabase mailboxes table (Requirements 13.5)
-    const { error } = await supabaseAdmin.from('mailboxes').insert({
+    const { error } = await supabaseAdmin.from('mailboxes').upsert({
       client_id: client.id,
       email: address,
       quota_mb: def.quotaMb,
       status: 'active',
-    });
+    }, { onConflict: 'email' });
 
     if (error) {
       throw new Error(`Failed to store mailbox ${address}: ${error.message}`);
@@ -264,7 +264,7 @@ async function runPathA(clientId: string): Promise<void> {
   // Step 2: Add domain to Mailcow (Requirements 11.4)
   try {
     await mailcowService.addDomain(client.domain);
-    await provisionSesRelay(clientId, client.domain);
+    await provisionSendcorexRelay(clientId, client.domain);
   } catch (err) {
     await setProvisioningError(clientId, 'mailcow_add_domain', err);
     throw err;
@@ -364,7 +364,7 @@ async function runPathB(clientId: string): Promise<void> {
   // Step 1: Add domain to Mailcow (Requirements 12.1)
   try {
     await mailcowService.addDomain(client.domain);
-    await provisionSesRelay(clientId, client.domain);
+    await provisionSendcorexRelay(clientId, client.domain);
   } catch (err) {
     await setProvisioningError(clientId, 'mailcow_add_domain', err);
     throw err;

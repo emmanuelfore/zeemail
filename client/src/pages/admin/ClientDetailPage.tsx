@@ -13,8 +13,8 @@ import type { Client, Mailbox, Invoice, SupportTicket, Plan, TicketStatus } from
 const PLAN_MRR: Record<Plan, number> = { starter: 5, business: 12, pro: 25 };
 
 const MAILCOW_HOST = import.meta.env.VITE_MAILCOW_HOST ?? 'mail.zeemail.co.zw';
-const SES_SPF_INCLUDE = import.meta.env.VITE_SES_SPF_INCLUDE ?? 'amazonses.com';
-const SPF_RECORD = `v=spf1 mx a:${MAILCOW_HOST} include:${SES_SPF_INCLUDE} ~all`;
+const SENDCOREX_SPF_INCLUDE = import.meta.env.VITE_SENDCOREX_SPF_INCLUDE ?? 'sendcorex.com';
+const SPF_RECORD = `v=spf1 mx a:${MAILCOW_HOST} include:${SENDCOREX_SPF_INCLUDE} ~all`;
 
 const cardStyle: React.CSSProperties = {
   background: 'var(--surface-container-low)',
@@ -240,6 +240,23 @@ function OverviewTab({
     }
   }
 
+  const [pushingCloudflare, setPushingCloudflare] = useState(false);
+
+  async function handleAutoPushCloudflare() {
+    try {
+      setPushingCloudflare(true);
+      await apiRequest<{ newStatus: any; zoneLinked: boolean }>('POST', `/api/clients/${client.id}/cloudflare/push-records`);
+      toast(`Records pushed to Cloudflare successfully!`, 'success');
+      // Refresh client data
+      const { data } = await supabase.from('clients').select('*').eq('id', client.id).single();
+      if (data) onClientUpdated(data as Client);
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Failed to push to Cloudflare', 'error');
+    } finally {
+      setPushingCloudflare(false);
+    }
+  }
+
   const mrr = client.status === 'active' ? PLAN_MRR[client.plan] : 0;
 
   return (
@@ -399,9 +416,14 @@ function OverviewTab({
                       Auto-fix via Cloudflare
                     </button>
                   ) : (
-                    <button style={btnGhost} onClick={() => alert('Option not automated. Send WhatsApp instructions.')}>
-                      Send instructions to client via WhatsApp
-                    </button>
+                    <>
+                      <button style={{ ...btnPrimary, background: '#10B981' }} onClick={handleAutoPushCloudflare} disabled={pushingCloudflare}>
+                        {pushingCloudflare ? 'Checking & Pushing...' : 'Check Cloudflare & Auto-push records'}
+                      </button>
+                      <button style={btnGhost} onClick={() => alert('Option not automated. Send WhatsApp instructions.')}>
+                        Send instructions to client via WhatsApp
+                      </button>
+                    </>
                   )}
                   <button style={btnGhost} onClick={() => {
                     const txt = `MX: ${MAILCOW_HOST} (Priority 10)\nSPF: ${SPF_RECORD}\nDMARC: v=DMARC1; p=none; rua=mailto:postmaster@${client.domain}` + (dkimKey ? `\nDKIM: ${dkimKey}` : '');

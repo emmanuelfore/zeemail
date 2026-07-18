@@ -11,7 +11,7 @@
  * Requirements: 11.1–11.3, 16.2
  */
 import Cloudflare from 'cloudflare';
-import { buildSesSpfRecord } from '../lib/sesRelay';
+import { buildSendcorexSpfRecord } from '../lib/sendcorexRelay';
 
 export interface CloudflareZone {
   id: string;
@@ -107,7 +107,7 @@ async function addMxRecord(zoneId: string, domain: string): Promise<CloudflareDn
 
 /**
  * Adds an SPF TXT record for the domain.
- * SPF value includes the Mailcow host and Amazon SES outbound relay.
+ * SPF value includes the Mailcow host and Sendcorex outbound relay.
  */
 async function addSpfRecord(zoneId: string, domain: string): Promise<CloudflareDnsRecord> {
   const { apiToken } = getCredentials();
@@ -115,7 +115,7 @@ async function addSpfRecord(zoneId: string, domain: string): Promise<CloudflareD
 
   const mailcowHostRaw = process.env.MAILCOW_HOST ?? 'mail.yourdomain.com';
   const mailcowHost = mailcowHostRaw.replace(/^https?:\/\//, '');
-  const spfValue = buildSesSpfRecord(mailcowHost);
+  const spfValue = buildSendcorexSpfRecord(mailcowHost);
 
   const record = await cf.dns.records.create({
     zone_id: zoneId,

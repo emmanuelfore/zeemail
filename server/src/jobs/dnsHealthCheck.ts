@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { mailcowService } from '../services/mailcow';
-import { getSesRelayConfig } from '../lib/sesRelay';
+import { getSendcorexRelayConfig } from '../lib/sendcorexRelay';
 // Unused import removed
 
 interface GoogleDnsAnswer {
@@ -18,7 +18,7 @@ const getMailcowHost = () => {
 };
 
 const REQUIRED_RECORDS = async (domain: string, mailcowHost: string) => {
-  const sesRelay = getSesRelayConfig();
+  const sendcorexRelay = getSendcorexRelayConfig();
   let hasDkim = false;
   try {
     const dkim = await mailcowService.getDkim(domain);
@@ -48,7 +48,7 @@ const REQUIRED_RECORDS = async (domain: string, mailcowHost: string) => {
           const records = data.Answer?.map((r: any) => r.data) || [];
           return records.some((r: string) => {
             const hasBase = r.includes('v=spf1') && r.includes(mailcowHost);
-            const hasRelay = r.includes(`include:${sesRelay.spfInclude}`);
+            const hasRelay = r.includes(`include:${sendcorexRelay.spfInclude}`);
             return hasBase && hasRelay;
           });
         } catch { return false; }

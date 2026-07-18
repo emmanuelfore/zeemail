@@ -15,6 +15,7 @@ import { CloudflareService } from '../services/cloudflare';
 import { mailcowService } from '../services/mailcow';
 import { runSingleHealthCheck } from '../jobs/dnsHealthCheck';
 import { SesRelayService } from '../services/sesRelay';
+import { SendcorexRelayService } from '../services/sendcorexRelay';
 
 const router = Router();
 
@@ -135,8 +136,8 @@ router.post(
           .update({
             mx_verified: true,
             mx_verified_at: new Date().toISOString(),
-            // Only move to active if it was pending_dns
-            status: client.status === 'pending_dns' ? 'active' : client.status,
+            // Move to active if it was pending_dns or pending_mx
+            status: ['pending_dns', 'pending_mx'].includes(client.status) ? 'active' : client.status,
           })
           .eq('id', id);
 
@@ -206,7 +207,7 @@ router.post(
   requireRole('admin'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await SesRelayService.provisionTenantDomain(req.params.id);
+      const result = await SesRelayService.provisionTenantDomain(req.params.id as string);
       res.json(result);
     } catch (err) {
       next(err);
@@ -225,7 +226,45 @@ router.get(
   requireRole('admin'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await SesRelayService.checkRelayVerification(req.params.id);
+      const result = await SesRelayService.checkRelayVerification(req.params.id as string);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// POST /api/clients/:id/relay/sendcorex/provision
+// Admin-only: provision Sendcorex outbound relay for an existing tenant domain.
+// ---------------------------------------------------------------------------
+
+router.post(
+  '/:id/relay/sendcorex/provision',
+  auth,
+  requireRole('admin'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await SendcorexRelayService.provisionTenantDomain(req.params.id as string);
+      res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// GET /api/clients/:id/relay/sendcorex/status
+// Admin-only: single Sendcorex verification status check without polling.
+// ---------------------------------------------------------------------------
+
+router.get(
+  '/:id/relay/sendcorex/status',
+  auth,
+  requireRole('admin'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const result = await SendcorexRelayService.checkRelayVerification(req.params.id as string);
       res.json(result);
     } catch (err) {
       next(err);
@@ -298,7 +337,121 @@ router.post(
       // Re-run health check
       const recheck = await runSingleHealthCheck(client);
 
+      if (recheck.allPassing) {
+        await supabaseAdmin
+          .from('clients')
+          .update({
+            mx_verified: true,
+            mx_verified_at: new Date().toISOString(),
+            status: 'active',
+          })
+          .eq('id', id);
+      }
+
       res.json({ success: true, newStatus: recheck });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
+// POST /api/clients/:id/cloudflare/push-records
+// Admin-only: Check if an existing domain is on Cloudflare, link it, and push records
+// ---------------------------------------------------------------------------
+
+router.post(
+  '/:id/cloudflare/push-records',
+  auth,
+  requireRole('admin'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const { id } = req.params;
+
+    try {
+      const { data: client, error: fetchError } = await supabaseAdmin
+        .from('clients')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (fetchError || !client) {
+        res.status(404).json({ error: 'Client not found', code: 'NOT_FOUND' });
+        return;
+      }
+
+      let zoneId = client.cloudflare_zone_id;
+
+      if (!zoneId) {
+        // Try to find it on Cloudflare
+        const zone = await CloudflareService.findZoneByName(client.domain);
+        if (!zone) {
+          res.status(404).json({ 
+            error: 'Domain not found in Cloudflare account.',
+            suggestion: 'Ensure the domain is added to this Cloudflare account.'
+          });
+          return;
+        }
+
+        zoneId = zone.id;
+
+        // Link the zone to the client
+        await supabaseAdmin
+          .from('clients')
+          .update({ 
+            cloudflare_zone_id: zone.id,
+            name_servers: zone.nameServers
+          })
+          .eq('id', id);
+        
+        client.cloudflare_zone_id = zone.id;
+        client.name_servers = zone.nameServers;
+      }
+
+      // Now push the records
+      const results = client.dns_check_results || {};
+
+      // Wait briefly for DKIM if it was just added
+      const dkimResult = await mailcowService.getDkim(client.domain).catch(() => null);
+
+      if (!results.MX) {
+        await CloudflareService.addMxRecord(zoneId, client.domain).catch(console.error);
+      }
+
+      if (!results.SPF) {
+        await CloudflareService.addSpfRecord(zoneId, client.domain).catch(console.error);
+      }
+
+      if (!results.DKIM && dkimResult?.dkim_txt) {
+        await CloudflareService.addDnsRecord(zoneId, {
+          type: 'TXT',
+          name: 'dkim._domainkey',
+          content: dkimResult.dkim_txt,
+        }).catch(console.error);
+      }
+
+      if (!results.DMARC) {
+        await CloudflareService.addDnsRecord(zoneId, {
+          type: 'TXT',
+          name: '_dmarc',
+          content: `v=DMARC1; p=none; rua=mailto:postmaster@${client.domain}`,
+        }).catch(console.error);
+      }
+
+      // Re-run health check
+      const recheck = await runSingleHealthCheck(client);
+
+      if (recheck.allPassing) {
+        await supabaseAdmin
+          .from('clients')
+          .update({
+            mx_verified: true,
+            mx_verified_at: new Date().toISOString(),
+            status: 'active',
+          })
+          .eq('id', id);
+      }
+
+      res.json({ success: true, newStatus: recheck, zoneLinked: true });
     } catch (err) {
       next(err);
     }
