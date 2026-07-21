@@ -123,7 +123,6 @@ router.post('/', async (req: Request, res: Response, next: NextFunction): Promis
     path,
     domain,
     plan,
-    billing_cycle = 'annual',
     company_name,
     full_name,
     email,
@@ -131,10 +130,6 @@ router.post('/', async (req: Request, res: Response, next: NextFunction): Promis
     phone,
     physical_address,
     previous_email_provider,
-    letterhead_ready,
-    signed_letter_ready,
-    id_ready,
-    tc_confirmed
   } = body as RegisterRequest & { billing_cycle?: 'monthly' | 'annual' };
 
   try {
