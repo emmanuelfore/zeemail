@@ -21,6 +21,9 @@ export interface Profile {
 export interface Client {
   id: string;
   profile_id: string | null;
+  full_name?: string | null;
+  email?: string | null;
+  phone?: string | null;
   company_name: string;
   domain: string;
   plan: Plan;

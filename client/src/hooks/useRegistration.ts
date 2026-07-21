@@ -110,9 +110,7 @@ export function useRegistration(): UseRegistrationReturn {
     setState((prev) => ({ ...prev, [field]: value }));
   }
 
-  function setBillingCycle(billing_cycle: 'annual') {
-    setState((prev) => ({ ...prev, billing_cycle }));
-  }
+
 
   function setClientId(id: string) {
     setState((prev) => ({ ...prev, clientId: id }));
@@ -132,7 +130,6 @@ export function useRegistration(): UseRegistrationReturn {
     setDomain,
     setDomainAvailability,
     setPlan,
-    setBillingCycle,
     setAccountField,
     setZispaField,
     setClientId,
