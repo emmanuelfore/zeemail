@@ -112,9 +112,7 @@ function RegisterPage() {
             <StepPlanSelect
               path={path}
               selectedPlan={registration.plan}
-              billingCycle={registration.billing_cycle}
               onPlanSelect={registration.setPlan}
-              onBillingCycleChange={registration.setBillingCycle}
               onNext={next}
             />
           );
@@ -150,9 +148,7 @@ function RegisterPage() {
           <StepPlanSelect
             path={path}
             selectedPlan={registration.plan}
-            billingCycle={registration.billing_cycle}
             onPlanSelect={registration.setPlan}
-            onBillingCycleChange={registration.setBillingCycle}
             onNext={next}
           />
         );

@@ -18,18 +18,18 @@ afterEach(() => {
 });
 
 const PLAN_PRICES: Record<Plan, number> = {
-  starter: 3,
-  business: 10,
-  pro: 18,
+  starter: 36,
+  business: 72,
+  pro: 180,
 };
 
-const DOMAIN_FEE = 5;
+const DOMAIN_FEE = 0;
 
 const planArb = fc.constantFrom<Plan>('starter', 'business', 'pro');
 const pathArb = fc.constantFrom<'A' | 'B'>('A', 'B');
 
 describe('Property 6: Fee calculation is path-dependent', () => {
-  it('Path A shows $5 domain fee line on every plan card', () => {
+  it('Path A shows Free domain fee line on every plan card', () => {
     fc.assert(
       fc.property(planArb, (plan) => {
         render(
@@ -44,7 +44,7 @@ describe('Property 6: Fee calculation is path-dependent', () => {
         // Domain fee line must be present for Path A
         const feeEl = screen.getByTestId(`plan-domain-fee-${plan}`);
         expect(feeEl).toBeInTheDocument();
-        expect(feeEl.textContent).toContain('+$5');
+        expect(feeEl.textContent).toContain('Free');
 
         // Total must equal plan price + $5
         const totalEl = screen.getByTestId(`plan-total-${plan}`);
@@ -82,7 +82,7 @@ describe('Property 6: Fee calculation is path-dependent', () => {
     );
   });
 
-  it('total for Path A is always $5 more than Path B for the same plan', () => {
+  it('total for Path A is always equal to Path B for the same plan since domain is free', () => {
     fc.assert(
       fc.property(planArb, pathArb, (plan, path) => {
         render(

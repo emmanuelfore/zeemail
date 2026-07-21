@@ -50,6 +50,42 @@ router.get(
 );
 
 // ---------------------------------------------------------------------------
+// GET /api/clients/:id/cloudflare-nameservers
+// Admin-only: fetch the nameservers for a client's Cloudflare zone.
+// ---------------------------------------------------------------------------
+
+router.get(
+  '/:id/cloudflare-nameservers',
+  auth,
+  requireRole('admin'),
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const { id } = req.params;
+    try {
+      const { data: client, error } = await supabaseAdmin
+        .from('clients')
+        .select('domain, cloudflare_zone_id')
+        .eq('id', id)
+        .single();
+        
+      if (error || !client) {
+        res.status(404).json({ error: 'Client not found' });
+        return;
+      }
+
+      if (!client.cloudflare_zone_id) {
+        res.json({ nameServers: [] });
+        return;
+      }
+
+      const zone = await CloudflareService.findZoneByName(client.domain);
+      res.json({ nameServers: zone?.nameServers ?? [] });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+// ---------------------------------------------------------------------------
 // POST /api/clients/:id/provision
 // Admin-only: trigger full provisioning sequence based on domain_owned flag.
 // Requirements: 10.3, 10.5, 11.1, 12.1
@@ -129,7 +165,7 @@ router.post(
       // Run the comprehensive health check (MX, SPF, DKIM, DMARC)
       const { allPassing, results } = await runSingleHealthCheck(client);
 
-      if (allPassing && !client.mx_verified) {
+      if (allPassing && (!client.mx_verified || ['pending_dns', 'pending_mx'].includes(client.status))) {
         // Update client record
         const { error: updateError } = await supabaseAdmin
           .from('clients')

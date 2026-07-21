@@ -227,28 +227,20 @@ const DomainSearch = ({ onRegister }: { onRegister?: (n: string, t: string) => v
   );
 };
 
-const BillingToggle = ({ billing, onChange }: { billing: 'monthly' | 'annual'; onChange: (b: 'monthly' | 'annual') => void }) => (
-  <div className="billing-toggle">
-    <button className={`bill-btn ${billing === 'monthly' ? 'active' : 'inactive'}`} onClick={() => onChange('monthly')}>Monthly</button>
-    <button className={`bill-btn ${billing === 'annual' ? 'active' : 'inactive'}`} onClick={() => onChange('annual')}>
-      Annual <span style={{ background: billing === 'annual' ? 'rgba(255,255,255,0.22)' : 'rgba(140,16,7,0.1)', color: billing === 'annual' ? 'white' : 'var(--red)', padding: '2px 8px', borderRadius: 999, fontSize: '0.625rem', fontWeight: 800 }}>20% off</span>
-    </button>
-  </div>
-);
+
 
 export function LandingPage() {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
-  const [billing, setBilling] = useState<'monthly' | 'annual'>('annual');
   const transitionRef = useRef<PageTransitionHandle>(null);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const isTablet = useMediaQuery('(min-width: 640px)');
   const { pricing } = usePricing();
 
   const PLANS_DYNAMIC = [
-    { id: 'starter' as Plan, name: 'Starter', monthlyPrice: pricing.starter, features: ['1 mailbox', `${pricing.starter} GB storage`, 'Outlook/Gmail sync', '.co.zw domain'] },
-    { id: 'business' as Plan, name: 'Business', monthlyPrice: pricing.business, popular: true, features: ['5 mailboxes', '10 GB storage', 'Unlimited aliases', 'Group calendars', '.co.zw domain'] },
-    { id: 'pro' as Plan, name: 'Pro', monthlyPrice: pricing.pro, features: ['20 mailboxes', '50 GB storage', 'Priority support', 'DMARC setup', '.co.zw domain'] },
+    { id: 'starter' as Plan, name: 'Starter', price: 36, monthlyEquivalent: 3, features: ['5 mailboxes', `2 GB storage`, 'Outlook/Gmail sync', '.co.zw domain'] },
+    { id: 'business' as Plan, name: 'Business', price: 72, monthlyEquivalent: 6, popular: true, features: ['10 mailboxes', '5 GB storage', 'Unlimited aliases', 'Group calendars', '.co.zw domain'] },
+    { id: 'pro' as Plan, name: 'Pro', price: 180, monthlyEquivalent: 15, features: ['20 mailboxes', '10 GB storage', 'Priority support', 'DMARC setup', '.co.zw domain'] },
   ];
 
   const COMPARISON_DYNAMIC = [
@@ -360,16 +352,20 @@ export function LandingPage() {
               <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
                 <p style={{ fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--red)', marginBottom: 10 }}>Pricing</p>
                 <h2 style={{ fontFamily: 'var(--ff-display)', fontSize: 'clamp(1.75rem,4vw,2.75rem)', fontWeight: 800, color: 'var(--ink)', marginBottom: '1.5rem' }}>Simple, transparent tiers</h2>
-                <BillingToggle billing={billing} onChange={setBilling} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: isDesktop ? 'repeat(3,1fr)' : '1fr', gap: '1.25rem', alignItems: 'start' }}>
                 {PLANS_DYNAMIC.map((p) => (
                   <div key={p.id} className={`plan-card${p.popular ? ' popular' : ''}`}>
                     {p.popular && <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)', background: 'var(--red)', color: 'white', padding: '4px 16px', borderRadius: 999, fontSize: '0.6875rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', whiteSpace: 'nowrap', boxShadow: '0 4px 14px rgba(140,16,7,0.3)' }}>Most Popular</div>}
                     <div style={{ marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: p.popular ? 'rgba(255,255,255,0.45)' : 'var(--muted)' }}>{p.name}</div>
-                    <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                      <span style={{ fontFamily: 'var(--ff-display)', fontSize: '3rem', fontWeight: 800, lineHeight: 1, color: p.popular ? 'white' : 'var(--ink)' }}>${Math.round(billing === 'annual' ? p.monthlyPrice * 0.83 : p.monthlyPrice)}</span>
-                      <span style={{ fontSize: '0.9rem', color: p.popular ? 'rgba(255,255,255,0.45)' : 'var(--muted)' }}>/mo</span>
+                    <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                        <span style={{ fontFamily: 'var(--ff-display)', fontSize: '3rem', fontWeight: 800, lineHeight: 1, color: p.popular ? 'white' : 'var(--ink)' }}>${p.monthlyEquivalent}</span>
+                        <span style={{ fontSize: '0.9rem', color: p.popular ? 'rgba(255,255,255,0.45)' : 'var(--muted)' }}>/mo</span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: p.popular ? 'rgba(255,255,255,0.45)' : 'var(--muted)' }}>
+                        billed annually (${p.price}/yr)
+                      </div>
                     </div>
                     <ul style={{ listStyle: 'none', padding: 0, marginBottom: '2rem', flex: 1 }}>
                       {p.features.map((f) => (
@@ -378,7 +374,7 @@ export function LandingPage() {
                         </li>
                       ))}
                     </ul>
-                    <button onClick={() => navigate(`/register?plan=${p.id}&billing=${billing}`)} style={{ width: '100%', padding: '0.875rem', borderRadius: 12, border: p.popular ? 'none' : '1.5px solid var(--border-strong)', background: p.popular ? 'var(--red)' : 'transparent', color: p.popular ? 'white' : 'var(--red)', fontFamily: 'var(--ff-body)', fontWeight: 700, fontSize: '0.9375rem', cursor: 'pointer', boxShadow: p.popular ? '0 6px 20px rgba(140,16,7,0.35)' : 'none', transition: 'all 0.18s' }}>
+                    <button onClick={() => navigate(`/register?plan=${p.id}&billing=annual`)} style={{ width: '100%', padding: '0.875rem', borderRadius: 12, border: p.popular ? 'none' : '1.5px solid var(--border-strong)', background: p.popular ? 'var(--red)' : 'transparent', color: p.popular ? 'white' : 'var(--red)', fontFamily: 'var(--ff-body)', fontWeight: 700, fontSize: '0.9375rem', cursor: 'pointer', boxShadow: p.popular ? '0 6px 20px rgba(140,16,7,0.35)' : 'none', transition: 'all 0.18s' }}>
                       Choose {p.name}
                     </button>
                   </div>

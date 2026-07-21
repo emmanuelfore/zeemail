@@ -10,7 +10,11 @@ import { PlanBadge } from '../../components/shared/PlanBadge';
 import { SkeletonLoader } from '../../components/shared/SkeletonLoader';
 import { EmptyState } from '../../components/shared/EmptyState';
 import type { Client, Mailbox, Invoice, SupportTicket, Plan, TicketStatus } from '../../types/index';
-const PLAN_MRR: Record<Plan, number> = { starter: 5, business: 12, pro: 25 };
+const PLAN_MRR: Record<Plan, number> = { starter: 3, business: 6, pro: 15 };
+
+interface NameserverData {
+  nameServers: string[];
+}
 
 const MAILCOW_HOST = import.meta.env.VITE_MAILCOW_HOST ?? 'mail.zeemail.co.zw';
 const SENDCOREX_SPF_INCLUDE = import.meta.env.VITE_SENDCOREX_SPF_INCLUDE ?? 'sendcorex.com';
@@ -139,6 +143,7 @@ interface OverviewTabProps {
   provisioned: boolean | null;
   provisioning: boolean;
   onProvision: () => void;
+  nameservers: string[];
 }
 
 function OverviewTab({ 
@@ -146,7 +151,8 @@ function OverviewTab({
   onClientUpdated, 
   provisioned, 
   provisioning, 
-  onProvision 
+  onProvision,
+  nameservers
 }: OverviewTabProps) {
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
@@ -332,6 +338,78 @@ function OverviewTab({
       
       {/* Portal Account card */}
       <PortalAccountCard profileId={client.profile_id} />
+
+      {client.domain_owned && (
+        <div style={{ ...cardStyle, borderLeft: '4px solid #F59E0B' }}>
+          <h3 style={{ margin: '0 0 1rem 0', color: '#B45309', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            ZISPA Registration Required
+          </h3>
+          <p style={{ margin: '0 0 1rem 0', fontSize: '0.875rem', color: 'var(--muted)' }}>
+            This client requested a new domain. Please manually register <strong>{client.domain}</strong> via ZISPA and point the nameservers to Zeemail's Cloudflare:
+          </p>
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 0.5rem 0', fontWeight: 600, fontSize: '0.875rem' }}>Cloudflare Nameservers:</p>
+              {nameservers.length > 0 ? (
+                <div style={{ background: 'var(--background)', padding: '1rem', borderRadius: '6px', fontFamily: 'monospace' }}>
+                  {nameservers.map(ns => (
+                    <div key={ns} style={{ marginBottom: '0.25rem', color: 'var(--primary)' }}>{ns}</div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ padding: '0.75rem', background: 'var(--background)', borderRadius: '6px', fontSize: '0.875rem', color: 'var(--muted)' }}>
+                  No nameservers found. Has the Cloudflare zone been created?
+                </div>
+              )}
+            </div>
+            
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start' }}>
+              <p style={{ margin: '0 0 0.5rem 0', fontWeight: 600, fontSize: '0.875rem' }}>Registration Template:</p>
+              <button
+                style={{ ...btnPrimary, display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                onClick={() => {
+                  const dateStr = new Date().toString().split(' GMT')[0]; // e.g. Thu Jul 09 09:58:47 2026
+                  const template = `DOMAIN OWNER
+  Owner                 = ${client.full_name}
+  Organisation name     = ${client.company_name}
+  Physical Address      = ${client.physical_address || 'TBD'}
+  Postal Address        = ${client.physical_address || 'TBD'}
+  Town/City             = Harare
+  Country               = Zimbabwe
+  Voice Phone           = ${client.phone || ''}
+  Fax Number            =
+  E-mail Address        = ${client.email} ${client.email}
+DESCRIPTION OF ORG/DOMAIN
+  Description           = Business Operations
+  Proposed domain usage = Website and Emails
+DOMICILIUM CITANDI
+  Domicilium citandi    = ${client.physical_address || 'TBD'}
+REGISTRAR
+  ZISPA Handle          = azaire
+NAMESERVERS
+  Primary Nameserver    = ${nameservers[0] || ''}
+  Secondary Nameserver  = ${nameservers[1] || ''}
+REGISTRATION HISTORY
+${dateStr}: add by azaire: ${client.domain}`;
+                  navigator.clipboard.writeText(template);
+                  toast('ZISPA Template copied to clipboard!', 'success');
+                }}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Copy ZISPA Template
+              </button>
+              <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.5rem' }}>
+                Click to copy the auto-filled registration template with their exact details to your clipboard.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={cardStyle}>
 
@@ -990,6 +1068,7 @@ export function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
   const [client, setClient] = useState<Client | null>(null);
+  const [nameservers, setNameservers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [provisioned, setProvisioned] = useState<boolean | null>(null);
@@ -1008,6 +1087,17 @@ export function ClientDetailPage() {
           .single();
         if (error) throw error;
         if (!cancelled) setClient(data as Client);
+
+        if (data.domain_owned) {
+          try {
+            const nsRes = await apiRequest<NameserverData>('GET', `/api/clients/${id}/cloudflare-nameservers`);
+            if (!cancelled && nsRes.nameServers) {
+              setNameservers(nsRes.nameServers);
+            }
+          } catch (e) {
+            console.error('Failed to fetch nameservers', e);
+          }
+        }
 
         // Check provisioning status
         const status = await apiRequest<{ provisioned: boolean }>('GET', `/api/clients/${id}/provision-status`);
@@ -1069,6 +1159,18 @@ export function ClientDetailPage() {
           <h1 style={{ color: 'var(--on-background)', margin: 0 }}>{client.company_name}</h1>
           <PlanBadge plan={client.plan} />
           <StatusBadge status={client.status} />
+          <span
+            style={{
+              fontSize: '0.75rem',
+              padding: '0.2rem 0.5rem',
+              borderRadius: '4px',
+              background: client.domain_owned ? '#FEF3C7' : '#E0E7FF',
+              color: client.domain_owned ? '#92400E' : '#3730A3',
+              fontWeight: 600,
+            }}
+          >
+            {client.domain_owned ? 'New Domain (ZISPA)' : 'Existing Domain'}
+          </span>
         </div>
         <span style={{ color: 'var(--on-surface-variant)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.875rem' }}>
           {client.domain}
@@ -1106,6 +1208,7 @@ export function ClientDetailPage() {
           provisioned={provisioned}
           provisioning={provisioning}
           onProvision={handleProvision}
+          nameservers={nameservers}
         />
       )}
       {activeTab === 'mailboxes' && (

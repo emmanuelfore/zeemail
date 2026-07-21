@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '../lib/supabaseAdmin';
 import { CloudflareService } from './cloudflare';
 import { mailcowService } from './mailcow';
-import { buildSendcorexRelayLine, buildSendcorexSpfRecord, getSendcorexRelayConfig } from '../lib/sendcorexRelay';
+import { buildSendcorexRelayLine, buildSendcorexSpfRecord, getSendcorexRelayConfig, addDomainToSendcorex, getDomainFromSendcorex, SendcorexDomainResponse } from '../lib/sendcorexRelay';
 
 type RelayStatus = 'pending' | 'verified' | 'failed';
 
@@ -94,13 +94,42 @@ function buildSpfRecord(domain: string): ManualDnsRecord {
   };
 }
 
+function mapSendcorexDns(apiRecords: NonNullable<SendcorexDomainResponse['domain']>['dnsRecords']): ManualDnsRecord[] {
+  const manualRecords: ManualDnsRecord[] = [];
+  if (apiRecords.spf) {
+    manualRecords.push({ type: 'TXT', name: apiRecords.spf.host, value: `"${apiRecords.spf.value}"`, purpose: 'Authorize Sendcorex outbound' });
+  }
+  if (apiRecords.dkim) {
+    manualRecords.push({ type: 'TXT', name: apiRecords.dkim.host, value: `"${apiRecords.dkim.value}"`, purpose: 'Sendcorex DKIM signature' });
+  }
+  if (apiRecords.returnPath) {
+    manualRecords.push({ type: 'CNAME', name: apiRecords.returnPath.host, value: apiRecords.returnPath.value, purpose: 'Sendcorex bounce routing' });
+  }
+  if (apiRecords.dmarc) {
+    manualRecords.push({ type: 'TXT', name: apiRecords.dmarc.host, value: `"${apiRecords.dmarc.value}"`, purpose: 'DMARC Policy' });
+  }
+  // Ignore MX to preserve Mailcow inbound routing
+  return manualRecords;
+}
+
 
 
 export async function checkRelayVerification(clientId: string): Promise<RelayProvisioningResult> {
   const client = await fetchClient(clientId);
   const relayLine = buildSendcorexRelayLine(client.domain);
-  const status = client.relay_verification_status || 'pending';
-  const isVerified = status === 'verified';
+  
+  let isVerified = false;
+  let manualDnsRecords: ManualDnsRecord[] = [buildSpfRecord(client.domain)];
+  
+  try {
+    const scDomain = await getDomainFromSendcorex(client.domain);
+    if (scDomain.success && scDomain.domain) {
+      isVerified = scDomain.domain.validated;
+      manualDnsRecords = mapSendcorexDns(scDomain.domain.dnsRecords);
+    }
+  } catch (err) {
+    logRelay('warn', 'sendcorex_api_fetch_failed', { clientId, domain: client.domain, error: err instanceof Error ? err.message : String(err) });
+  }
 
   await updateClientRelay(client.id, {
     relay_verification_status: isVerified ? 'verified' : 'pending',
@@ -112,7 +141,7 @@ export async function checkRelayVerification(clientId: string): Promise<RelayPro
     domain: client.domain,
     status: isVerified ? 'verified' : 'pending',
     dnsManagedByUs: !!client.cloudflare_zone_id,
-    manualDnsRecords: [buildSpfRecord(client.domain)],
+    manualDnsRecords,
     relayLine,
     dkimTokens: [],
     verificationStatus: isVerified ? 'SUCCESS' : 'PENDING',
@@ -131,12 +160,26 @@ export async function provisionTenantDomain(clientId: string): Promise<RelayProv
   try {
     logRelay('info', 'relay_provisioning_started', { clientId, domain: client.domain });
     
-    const records = [buildSpfRecord(client.domain)];
+    // Add domain to Sendcorex
+    let manualDnsRecords: ManualDnsRecord[] = [buildSpfRecord(client.domain)];
+    try {
+      let scDomain = await getDomainFromSendcorex(client.domain);
+      if (!scDomain.success || scDomain.error === "DOMAIN_NOT_FOUND") {
+        scDomain = await addDomainToSendcorex(client.domain);
+      }
+      if (scDomain.success && scDomain.domain) {
+        manualDnsRecords = mapSendcorexDns(scDomain.domain.dnsRecords);
+      }
+    } catch (err) {
+      logRelay('error', 'sendcorex_api_add_failed', { clientId, error: err instanceof Error ? err.message : String(err) });
+      throw new Error('Failed to register domain on Sendcorex API');
+    }
+
     const zoneId = await resolveCloudflareZoneId(client);
     const dnsManagedByUs = !!zoneId;
 
     if (zoneId) {
-      await applyCloudflareDns(zoneId, records);
+      await applyCloudflareDns(zoneId, manualDnsRecords);
     }
 
     const config = getSendcorexRelayConfig();
@@ -148,8 +191,8 @@ export async function provisionTenantDomain(clientId: string): Promise<RelayProv
     if (!relay) {
       await mailcowService.addRelayhost({
         hostname: relayhostName,
-        username: config.apiKey,
-        password: config.apiKey,
+        username: config.smtpUsername || config.apiKey,
+        password: config.smtpPassword || config.apiKey,
         active: 1
       });
       relayhosts = await mailcowService.getRelayhosts();
@@ -175,7 +218,7 @@ export async function provisionTenantDomain(clientId: string): Promise<RelayProv
       domain: client.domain,
       status: 'verified',
       dnsManagedByUs,
-      manualDnsRecords: dnsManagedByUs ? [] : records,
+      manualDnsRecords: dnsManagedByUs ? [] : manualDnsRecords,
       relayLine,
       dkimTokens: [],
       verificationStatus: 'SUCCESS',

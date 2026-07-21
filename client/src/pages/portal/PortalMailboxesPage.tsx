@@ -376,6 +376,22 @@ export function PortalMailboxesPage() {
               {isPlanLimitReached ? 'Manage Plan' : 'Add Mailbox'}
             </button>
           )}
+          <button
+            onClick={() => window.open('https://mail.zeemail.co.zw/SOGo', '_blank')}
+            style={{
+              background: 'var(--bg-card)',
+              color: 'var(--text-cream)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              padding: '0.625rem 1.25rem',
+              fontWeight: 700,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            Open Webmail
+          </button>
         </div>
       </div>
 

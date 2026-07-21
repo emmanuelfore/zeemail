@@ -12,9 +12,9 @@ import { ProvisioningEngine } from '../services/provisioning';
 const router = Router();
 
 const MAILBOX_LIMITS: Record<Plan, number> = {
-  starter: 1,
-  business: 5,
-  pro: 10,
+  starter: 5,
+  business: 10,
+  pro: 20,
 };
 
 router.post('/add', auth, requireRole('admin'), async (req: Request, res: Response, next: NextFunction): Promise<void> => {

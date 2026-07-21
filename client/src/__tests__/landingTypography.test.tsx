@@ -9,8 +9,8 @@ const tokensCSS = readFileSync(tokensPath, 'utf-8');
 const indexHTML = readFileSync(indexHtmlPath, 'utf-8');
 
 describe('Font tokens (tokens.css)', () => {
-  it('contains --font-heading with Syne', () => {
-    expect(tokensCSS).toMatch(/--font-heading:\s*'Syne'/);
+  it('contains --font-heading with Outfit', () => {
+    expect(tokensCSS).toMatch(/--font-heading:\s*'Outfit'/);
   });
 
   it('contains --font-body with Inter', () => {

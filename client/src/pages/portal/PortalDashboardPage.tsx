@@ -449,6 +449,12 @@ export function PortalDashboardPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
           {[
             {
+              title: 'Open Webmail',
+              desc: 'Access your inbox, calendars, and contacts via SOGo.',
+              path: 'https://mail.zeemail.co.zw/SOGo',
+              external: true
+            },
+            {
               title: 'Infrastructure & Mail',
               desc: 'Create, edit, and monitor your enterprise mailboxes.',
               path: '/portal/mailboxes',
@@ -466,7 +472,7 @@ export function PortalDashboardPage() {
           ].map((action) => (
             <button
               key={action.title}
-              onClick={() => navigate(action.path)}
+              onClick={() => action.external ? window.open(action.path, '_blank') : navigate(action.path)}
               style={{
                 background: 'white',
                 border: '1px solid var(--border)',

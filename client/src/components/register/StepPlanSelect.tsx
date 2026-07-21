@@ -3,33 +3,28 @@ import type { Plan } from '../../types';
 const PLANS: Array<{
   id: Plan;
   label: string;
-  priceMonthly: number;
   priceAnnual: number;
   mailboxes: number;
   description: string;
 }> = [
-  { id: 'starter',  label: 'Starter',  priceMonthly: 5,  priceAnnual: 48,  mailboxes: 1,  description: '1 mailbox — perfect for solo operators' },
-  { id: 'business', label: 'Business', priceMonthly: 12, priceAnnual: 115, mailboxes: 5,  description: '5 mailboxes — great for small teams' },
-  { id: 'pro',      label: 'Pro',      priceMonthly: 25, priceAnnual: 240, mailboxes: 10, description: '10 mailboxes — built for growing businesses' },
+  { id: 'starter',  label: 'Starter',  priceAnnual: 36,  mailboxes: 5,  description: '5 mailboxes — perfect for solo operators' },
+  { id: 'business', label: 'Business', priceAnnual: 72,  mailboxes: 10, description: '10 mailboxes — great for small teams' },
+  { id: 'pro',      label: 'Pro',      priceAnnual: 180, mailboxes: 20, description: '20 mailboxes — built for growing businesses' },
 ];
 
-const DOMAIN_FEE = 5;
+const DOMAIN_FEE = 0;
 
 interface StepPlanSelectProps {
   path: 'A' | 'B';
   selectedPlan: Plan | null;
-  billingCycle: 'monthly' | 'annual';
   onPlanSelect: (plan: Plan) => void;
-  onBillingCycleChange: (cycle: 'monthly' | 'annual') => void;
   onNext: () => void;
 }
 
 export default function StepPlanSelect({
   path,
   selectedPlan,
-  billingCycle,
   onPlanSelect,
-  onBillingCycleChange,
   onNext,
 }: StepPlanSelectProps) {
   const showDomainFee = path === 'A';
@@ -37,65 +32,12 @@ export default function StepPlanSelect({
   return (
     <div data-testid="step-plan-select" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <h2 style={{ color: 'var(--text-cream)', margin: 0 }}>Choose your plan</h2>
-      
-      {/* Billing Cycle Toggle */}
-      <div style={{
-        display: 'flex',
-        background: 'var(--bg-page)',
-        padding: '0.25rem',
-        borderRadius: '8px',
-        alignSelf: 'flex-start',
-        border: '1px solid var(--border)',
-      }}>
-        <button
-          onClick={() => onBillingCycleChange('monthly')}
-          style={{
-            padding: '0.4rem 1rem',
-            borderRadius: '6px',
-            border: 'none',
-            background: billingCycle === 'monthly' ? 'var(--primary)' : 'transparent',
-            color: 'var(--text-cream)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
-          Monthly
-        </button>
-        <button
-          onClick={() => onBillingCycleChange('annual')}
-          style={{
-            padding: '0.4rem 1rem',
-            borderRadius: '6px',
-            border: 'none',
-            background: billingCycle === 'annual' ? 'var(--primary)' : 'transparent',
-            color: 'var(--text-cream)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          Annual
-          <span style={{
-            fontSize: '0.65rem',
-            background: 'rgba(255,255,255,0.2)',
-            padding: '1px 4px',
-            borderRadius: '4px',
-          }}>
-            -20%
-          </span>
-        </button>
-      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         {PLANS.map((plan) => {
           const isSelected = selectedPlan === plan.id;
-          const planPrice = billingCycle === 'monthly' ? plan.priceMonthly : Math.round(plan.priceAnnual / 12);
-          const totalBase = billingCycle === 'monthly' ? plan.priceMonthly : plan.priceAnnual;
-          const firstMonthTotal = showDomainFee ? totalBase + DOMAIN_FEE : totalBase;
+          const planPriceMonthlyEquivalent = Math.round(plan.priceAnnual / 12);
+          const firstMonthTotal = showDomainFee ? plan.priceAnnual + DOMAIN_FEE : plan.priceAnnual;
 
           return (
             <button
@@ -122,13 +64,11 @@ export default function StepPlanSelect({
                 <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{plan.label}</span>
                 <div style={{ textAlign: 'right' }}>
                   <div data-testid={`plan-price-${plan.id}`} style={{ fontWeight: 700, fontSize: '1.1rem' }}>
-                    ${planPrice}/mo
+                    ${planPriceMonthlyEquivalent}/mo
                   </div>
-                  {billingCycle === 'annual' && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      billed annually (${plan.priceAnnual}/yr)
-                    </div>
-                  )}
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    billed annually (${plan.priceAnnual}/yr)
+                  </div>
                 </div>
               </div>
 
@@ -157,7 +97,7 @@ export default function StepPlanSelect({
                   }}
                 >
                   <span>+ Domain registration fee</span>
-                  <span>+$5</span>
+                  <span>Free</span>
                 </div>
               )}
 

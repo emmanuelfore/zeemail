@@ -8,6 +8,7 @@
  */
 import { Router, Request, Response, NextFunction } from 'express';
 import { supabaseAdmin } from '../lib/supabaseAdmin';
+import { CloudflareService } from '../services/cloudflare';
 import type { Plan } from '../types/index';
 
 const router = Router();
@@ -34,20 +35,20 @@ interface RegisterRequest {
 }
 
 const MAILBOX_LIMITS: Record<Plan, number> = {
-  starter: 1,
-  business: 5,
-  pro: 10,
+  starter: 5,
+  business: 10,
+  pro: 20,
 };
 
 const VALID_PLANS: Plan[] = ['starter', 'business', 'pro'];
 
-const PLAN_PRICES: Record<Plan, { monthly: number; annual: number }> = {
-  starter: { monthly: 5, annual: 48 },
-  business: { monthly: 12, annual: 115 },
-  pro: { monthly: 25, annual: 240 },
+const PLAN_PRICES: Record<Plan, number> = {
+  starter: 36,
+  business: 72,
+  pro: 180,
 };
 
-const DOMAIN_FEE = 5;
+const DOMAIN_FEE = 0;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -109,7 +110,7 @@ router.get('/check-email', async (req: Request, res: Response, next: NextFunctio
 // ---------------------------------------------------------------------------
 
 router.post('/', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-  const body = req.body as Partial<RegisterRequest & { billing_cycle: 'monthly' | 'annual' }>;
+  const body = req.body as Partial<RegisterRequest & { billing_cycle?: 'monthly' | 'annual' }>;
 
   // Validate required fields
   const validationError = validateRegisterRequest(body);
@@ -122,7 +123,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction): Promis
     path,
     domain,
     plan,
-    billing_cycle = 'monthly',
+    billing_cycle = 'annual',
     company_name,
     full_name,
     email,
@@ -130,7 +131,11 @@ router.post('/', async (req: Request, res: Response, next: NextFunction): Promis
     phone,
     physical_address,
     previous_email_provider,
-  } = body as RegisterRequest & { billing_cycle: 'monthly' | 'annual' };
+    letterhead_ready,
+    signed_letter_ready,
+    id_ready,
+    tc_confirmed
+  } = body as RegisterRequest & { billing_cycle?: 'monthly' | 'annual' };
 
   try {
     // Check for duplicate email in auth users
@@ -196,6 +201,25 @@ router.post('/', async (req: Request, res: Response, next: NextFunction): Promis
       phone,
     };
 
+    if (path === 'A') {
+      try {
+        const zone = await CloudflareService.createZone(domain);
+        clientInsert.cloudflare_zone_id = zone.id;
+      } catch (err: any) {
+        if (err.message && err.message.toLowerCase().includes('already exists')) {
+          try {
+            const existingZone = await CloudflareService.findZoneByName(domain);
+            if (existingZone) clientInsert.cloudflare_zone_id = existingZone.id;
+          } catch (e) {
+            console.error('Failed to find existing Cloudflare zone:', e);
+          }
+        } else {
+          console.error('Failed to create Cloudflare zone during registration:', err);
+          // Proceed with registration, admin can resolve Cloudflare later
+        }
+      }
+    }
+
     if (path === 'B' && previous_email_provider) {
       clientInsert.previous_email_provider = previous_email_provider;
     }
@@ -214,7 +238,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction): Promis
     }
 
     // AUTOMATIC INVOICE CREATION
-    const basePrice = billing_cycle === 'annual' ? PLAN_PRICES[plan].annual : PLAN_PRICES[plan].monthly;
+    const basePrice = PLAN_PRICES[plan];
     const finalAmount = path === 'A' ? basePrice + DOMAIN_FEE : basePrice;
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 7);
@@ -225,7 +249,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction): Promis
         client_id: clientData.id,
         amount: finalAmount,
         status: 'unpaid',
-        description: `Initial setup: ${plan} plan (${billing_cycle})${path === 'A' ? ' + Domain registration' : ''}`,
+        description: `Initial setup: ${plan} plan (annual)${path === 'A' ? ' + Domain registration' : ''}`,
         due_date: dueDate.toISOString(),
       });
 

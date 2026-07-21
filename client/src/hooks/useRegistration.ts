@@ -9,7 +9,7 @@ export interface RegistrationState {
   domain: string;
   domainAvailability: DomainAvailability;
   plan: Plan | null;
-  billing_cycle: 'monthly' | 'annual';
+  billing_cycle: 'annual';
   // Account fields
   full_name: string;
   company_name: string;
@@ -43,7 +43,6 @@ export interface UseRegistrationReturn extends RegistrationState {
   setDomain: (domain: string) => void;
   setDomainAvailability: (status: DomainAvailability) => void;
   setPlan: (plan: Plan) => void;
-  setBillingCycle: (billing: 'monthly' | 'annual') => void;
   setAccountField: (field: AccountField, value: string | null) => void;
   setZispaField: (field: ZispaField, value: boolean) => void;
   setClientId: (id: string) => void;
@@ -59,11 +58,6 @@ function getInitialPlan(searchParams: URLSearchParams): Plan | null {
   return null;
 }
 
-function getInitialBilling(searchParams: URLSearchParams): 'monthly' | 'annual' {
-  const param = searchParams.get('billing');
-  return param === 'annual' ? 'annual' : 'monthly';
-}
-
 function getInitialDomain(searchParams: URLSearchParams): string {
   return searchParams.get('domain') ?? '';
 }
@@ -76,7 +70,7 @@ export function useRegistration(): UseRegistrationReturn {
     domain: getInitialDomain(searchParams),
     domainAvailability: 'idle',
     plan: getInitialPlan(searchParams),
-    billing_cycle: getInitialBilling(searchParams),
+    billing_cycle: 'annual',
     full_name: '',
     company_name: '',
     phone: '',
@@ -116,7 +110,7 @@ export function useRegistration(): UseRegistrationReturn {
     setState((prev) => ({ ...prev, [field]: value }));
   }
 
-  function setBillingCycle(billing_cycle: 'monthly' | 'annual') {
+  function setBillingCycle(billing_cycle: 'annual') {
     setState((prev) => ({ ...prev, billing_cycle }));
   }
 
